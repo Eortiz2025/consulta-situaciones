@@ -21,16 +21,8 @@ if busqueda:
 
     if not resultados.empty:
         st.success(f"✅ Se encontraron {len(resultados)} productos:")
-        st.dataframe(resultados[['Nombre', 'Precio de venta con IVA', 'C¢digo EAN']])
+        st.dataframe(resultados[['Nombre', 'Precio de venta con IVA', 'Código EAN']])
     else:
         st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 else:
     st.info("👈 Escribe el nombre de un producto para buscar en el catálogo.")
-
-# Descargar el catálogo completo
-st.download_button(
-    label="📥 Descargar Catálogo Completo",
-    data=df_productos.to_csv(index=False).encode('utf-8'),
-    file_name='catalogo_naturista.csv',
-    mime='text/csv'
-)
