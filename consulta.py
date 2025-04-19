@@ -9,6 +9,9 @@ def cargar_catalogo():
 
 df_productos = cargar_catalogo()
 
+# MOSTRAR las columnas encontradas para diagnosticar
+st.write("Columnas encontradas:", df_productos.columns.tolist())
+
 # Título principal
 st.title("🔎 Consulta de Productos - Naturista")
 
