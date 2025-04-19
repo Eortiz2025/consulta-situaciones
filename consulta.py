@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 
-# Cargar catálogo de productos
+# Cargar catálogo de productos desde un archivo Excel
 @st.cache_data
 def cargar_catalogo():
-    df = pd.read_csv('naturista.csv', encoding='latin-1')
+    df = pd.read_excel('naturista.xlsx')
     return df
 
 df_productos = cargar_catalogo()
@@ -17,7 +17,6 @@ busqueda = st.text_input("Escribe el nombre o parte del nombre del producto:")
 
 # Resultado de búsqueda
 if busqueda:
-    # Filtrar productos que contengan el texto buscado (sin importar mayúsculas/minúsculas)
     resultados = df_productos[df_productos['Nombre'].str.contains(busqueda, case=False, na=False)]
 
     if not resultados.empty:
