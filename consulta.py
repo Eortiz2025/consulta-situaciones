@@ -1,48 +1,37 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 
-# Inicializar "base de datos" en memoria
-if 'data' not in st.session_state:
-    st.session_state.data = pd.DataFrame(columns=["Fecha", "Empleado", "Tipo de Situación", "Descripción"])
+# Cargar catálogo de productos
+@st.cache_data
+def cargar_catalogo():
+    df = pd.read_csv('naturista.csv', encoding='latin-1')
+    return df
+
+df_productos = cargar_catalogo()
 
 # Título principal
-st.title("Consulta y Registro de Situaciones Diarias 📋")
+st.title("🔎 Consulta de Productos - Naturista")
 
-# Sección lateral para nuevo registro
-st.sidebar.header("Nuevo Registro")
+# Campo de búsqueda
+busqueda = st.text_input("Escribe el nombre o parte del nombre del producto:")
 
-# Captura de datos
-empleado = st.sidebar.text_input("Nombre del Empleado")
-tipo_situacion = st.sidebar.selectbox("Tipo de Situación", ["Problema", "Idea de Mejora", "Comentario General"])
-descripcion = st.sidebar.text_area("Descripción Breve")
+# Resultado de búsqueda
+if busqueda:
+    # Filtrar productos que contengan el texto buscado (sin importar mayúsculas/minúsculas)
+    resultados = df_productos[df_productos['Nombre'].str.contains(busqueda, case=False, na=False)]
 
-if st.sidebar.button("Registrar"):
-    if empleado and descripcion:
-        nuevo_registro = {
-            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Empleado": empleado,
-            "Tipo de Situación": tipo_situacion,
-            "Descripción": descripcion
-        }
-        st.session_state.data = pd.concat(
-            [st.session_state.data, pd.DataFrame([nuevo_registro])],
-            ignore_index=True
-        )
-        st.sidebar.success("✅ Registro guardado exitosamente.")
+    if not resultados.empty:
+        st.success(f"✅ Se encontraron {len(resultados)} productos:")
+        st.dataframe(resultados[['Nombre', 'Precio de venta con IVA', 'C¢digo EAN']])
     else:
-        st.sidebar.error("❌ Por favor, completa todos los campos.")
+        st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
+else:
+    st.info("👈 Escribe el nombre de un producto para buscar en el catálogo.")
 
-# Sección principal: mostrar registros
-st.header("Situaciones Registradas 📚")
-
-# Mostrar tabla
-st.dataframe(st.session_state.data, use_container_width=True)
-
-# Botón para descarga de datos
+# Descargar el catálogo completo
 st.download_button(
-    label="📥 Descargar registros en CSV",
-    data=st.session_state.data.to_csv(index=False).encode('utf-8'),
-    file_name='situaciones_diarias.csv',
+    label="📥 Descargar Catálogo Completo",
+    data=df_productos.to_csv(index=False).encode('utf-8'),
+    file_name='catalogo_naturista.csv',
     mime='text/csv'
 )
