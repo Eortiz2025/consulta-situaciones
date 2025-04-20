@@ -3,7 +3,6 @@ import pandas as pd
 import openai
 import re
 import unicodedata
-from datetime import datetime
 
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -17,7 +16,7 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para normalizar texto (sin acentos)
+# Función para normalizar texto eliminando acentos
 def normalizar_texto(texto):
     if isinstance(texto, str):
         texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
@@ -47,11 +46,11 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para extraer ingredientes detectados de respuesta
+# Función para extraer ingredientes detectados directamente desde la respuesta
 def extraer_ingredientes_de_respuesta(texto):
     posibles = [
         "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
-        "zinc", "vitamina", "probiotico", "spirulina", "espirulina", "pasiflora", "hierba", 
+        "zinc", "vitamina", "probiotico", "spirulina", "espirulina", "pasiflora", "hierba",
         "cuachalalate", "colageno", "magnesio", "resveratrol", "melatonina", "triptófano", "luteina"
     ]
     encontrados = []
@@ -60,22 +59,6 @@ def extraer_ingredientes_de_respuesta(texto):
         if palabra in texto_normalizado:
             encontrados.append(palabra)
     return list(set(encontrados))
-
-# Función para guardar historial en CSV
-def guardar_en_historial(consulta, ingredientes):
-    fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    nuevo_registro = pd.DataFrame({
-        "Fecha y hora": [fecha_hora],
-        "Consulta": [consulta],
-        "Ingredientes detectados": [", ".join(ingredientes)]
-    })
-    try:
-        historial_existente = pd.read_csv('historial_consultas.csv')
-        historial_actualizado = pd.concat([historial_existente, nuevo_registro], ignore_index=True)
-    except FileNotFoundError:
-        historial_actualizado = nuevo_registro
-
-    historial_actualizado.to_csv('historial_consultas.csv', index=False)
 
 # Cargar catálogo
 df_productos = cargar_catalogo()
@@ -100,9 +83,6 @@ if consulta_usuario:
     st.success(f"ℹ️ {respuesta_openai}")
 
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
-
-    # Guardar automáticamente historial (sin mostrar nada al usuario)
-    guardar_en_historial(consulta_usuario, ingredientes_detectados)
 
     if ingredientes_detectados:
         st.markdown("🔎 Detectamos estos criterios de búsqueda:")
