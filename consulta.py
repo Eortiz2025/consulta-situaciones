@@ -26,12 +26,13 @@ if tipo_busqueda == "Por Nombre":
         resultados = df_productos[df_productos['Nombre'].str.contains(busqueda_nombre, case=False, na=False)]
 
         if not resultados.empty:
-            resultados_mostrar = resultados[['Código', 'Nombre', 'Serie de producto', 'Precio de venta con IVA']].copy()
-            resultados_mostrar['Precio de venta con IVA'] = resultados_mostrar['Precio de venta con IVA'].astype(int)
-            resultados_mostrar = resultados_mostrar.rename(columns={'Precio de venta con IVA': 'Precio'})
+            st.success(f"✅ Se encontraron {len(resultados)} productos:")
 
-            st.success(f"✅ Se encontraron {len(resultados_mostrar)} productos:")
-            st.dataframe(resultados_mostrar)
+            # Mostrar productos con checkbox
+            for index, row in resultados.iterrows():
+                if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"prod_{index}"):
+                    # Mostrar información breve simulada
+                    st.info(f"ℹ️ Información breve sobre **{row['Nombre']}**: Producto naturista de alta calidad, recomendado para el bienestar general.")
         else:
             st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 
@@ -44,11 +45,12 @@ elif tipo_busqueda == "Por Serie":
         resultados = df_productos[df_productos['Serie de producto'] == serie_seleccionada]
 
         if not resultados.empty:
-            resultados_mostrar = resultados[['Código', 'Nombre', 'Serie de producto', 'Precio de venta con IVA']].copy()
-            resultados_mostrar['Precio de venta con IVA'] = resultados_mostrar['Precio de venta con IVA'].astype(int)
-            resultados_mostrar = resultados_mostrar.rename(columns={'Precio de venta con IVA': 'Precio'})
+            st.success(f"✅ Se encontraron {len(resultados)} productos en la serie seleccionada:")
 
-            st.success(f"✅ Se encontraron {len(resultados_mostrar)} productos en la serie seleccionada:")
-            st.dataframe(resultados_mostrar)
+            # Mostrar productos con checkbox
+            for index, row in resultados.iterrows():
+                if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"serie_{index}"):
+                    # Mostrar información breve simulada
+                    st.info(f"ℹ️ Información breve sobre **{row['Nombre']}**: Producto naturista de alta calidad, recomendado para el bienestar general.")
         else:
             st.warning("⚠️ No se encontraron productos en esta serie.")
