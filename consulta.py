@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import openai
 
-# Configura tu clave API aquí
+# Cargar tu API Key de OpenAI desde Secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Función para cargar el catálogo
@@ -11,19 +11,26 @@ def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Función para consultar descripción a ChatGPT
+# Función mejorada para consultar a ChatGPT una descripción
 def consultar_descripcion_chatgpt(nombre, ean):
-    prompt = f"Explica de forma breve, en máximo 400 caracteres, qué es y para qué sirve el producto '{nombre}' con código EAN {ean}."
+    prompt = f"""
+Eres un experto en suplementos naturistas. Explica brevemente, en máximo 400 caracteres, qué es y para qué sirve el siguiente producto:
+
+Nombre: {nombre}
+Código EAN: {ean}
+
+Si no encuentras información exacta, da una respuesta general sobre las propiedades típicas de productos similares.
+"""
 
     try:
         respuesta = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Eres un experto en productos naturistas y suplementos."},
+                {"role": "system", "content": "Eres un asistente especializado en productos naturistas."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=150,
-            temperature=0.5
+            max_tokens=200,
+            temperature=0.4
         )
 
         texto = respuesta.choices[0].message['content'].strip()
@@ -31,11 +38,11 @@ def consultar_descripcion_chatgpt(nombre, ean):
     except Exception as e:
         return "No se encontró descripción disponible. Consulta con tu asesor naturista."
 
-# Cargar datos
+# Cargar el catálogo
 df_productos = cargar_catalogo()
 
 # Título principal
-st.title("🔎 Consulta de Productos - Naturista (Con ChatGPT Descripción Inteligente)")
+st.title("🔎 Consulta de Productos - Naturista (Con Descripción Inteligente Mejorada)")
 
 # Tipo de búsqueda
 tipo_busqueda = st.selectbox(
