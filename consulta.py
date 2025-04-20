@@ -10,12 +10,12 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 def cargar_catalogo():
     return pd.read_excel('naturista.xlsx')
 
-# Tabla interna: palabras clave asociadas a categorías
+# Tabla interna: palabras clave asociadas a categorías reales del catálogo
 mapa_categorias = {
-    "visión": "vision",
-    "vista": "vision",
-    "ojos": "vision",
-    "ocular": "vision",
+    "visión": "ojos",
+    "vista": "ojos",
+    "ojos": "ojos",
+    "ocular": "ojos",
     "circulación": "circulacion",
     "sangre": "circulacion",
     "varices": "circulacion",
@@ -83,7 +83,7 @@ df_productos = cargar_catalogo()
 df_productos.columns = df_productos.columns.str.strip().str.lower()
 
 # Detectar automáticamente la columna de categoría (5ta columna)
-nombre_columna_categoria = df_productos.columns[4]  # 0,1,2,3,4 --> quinta columna
+nombre_columna_categoria = df_productos.columns[4]  # 0,1,2,3,4
 
 # Título principal
 st.title("🔎 Consulta - Karolo")
@@ -100,6 +100,7 @@ st.markdown(
     - ¿Qué recomiendas para fortalecer defensas?
     - ¿Tienes algo para la diabetes?
     - Me siento cansado, ¿qué puedo tomar?
+    - Necesito gotas para los ojos
 
     ¡Estoy aquí para ayudarte! 🌟
     """
