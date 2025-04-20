@@ -63,11 +63,13 @@ No repitas el nombre ni inventes efectos médicos exagerados.
     except Exception as e:
         return f"❌ Error: {e}"
 
+# Función de filtro para evitar productos inadecuados
+def es_producto_valido(nombre):
+    palabras_prohibidas = ['incienso', 'shampoo', 'jabón', 'jabon', 'loción', 'locion', 'spray', 'aroma', 'ambientador']
+    return not any(prohibida in nombre.lower() for prohibida in palabras_prohibidas)
+
 # Cargar catálogo
 df_productos = cargar_catalogo()
-
-# Palabras prohibidas para filtrar productos no adecuados
-palabras_prohibidas = ['incienso', 'shampoo', 'jabón', 'jabon', 'loción', 'locion', 'spray', 'aroma', 'ambientador']
 
 # Título principal
 st.title("🔎 Consulta - Karolo")
@@ -93,37 +95,48 @@ st.markdown(
 consulta_necesidad = st.text_input("Escribe tu necesidad:")
 
 if consulta_necesidad:
-    st.info("🔎 Consultando al asesor experto...")
-    palabras_clave = obtener_palabras_clave(consulta_necesidad)
+    st.info("🔎 Buscando coincidencias directas en catálogo...")
 
-    if palabras_clave:
-        st.success(f"✅ Basado en tu necesidad, se buscarán productos relacionados con: {', '.join(palabras_clave)}")
+    # Primera búsqueda: literal usando la pregunta del usuario
+    filtro_directo = df_productos['Nombre'].str.contains(consulta_necesidad, case=False, na=False)
+    resultados_directos = df_productos[filtro_directo]
+    resultados_directos = resultados_directos[resultados_directos['Nombre'].apply(es_producto_valido)]
 
-        # Buscar productos que contengan alguna palabra clave
-        filtro = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
-
-        # Filtro adicional para evitar productos no adecuados
-        def es_producto_valido(nombre):
-            return not any(prohibida in nombre.lower() for prohibida in palabras_prohibidas)
-
-        resultados = df_productos[filtro]
-        resultados = resultados[resultados['Nombre'].apply(es_producto_valido)]
-
-        if not resultados.empty:
-            st.subheader("🎯 Productos sugeridos:")
-
-            for index, row in resultados.iterrows():
-                col1, col2 = st.columns([0.1, 0.9])  # Checkbox y luego descripción
-                with col1:
-                    ver_detalles = st.checkbox("", key=f"detalle_{row['Código']}")
-                with col2:
-                    st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
-
-                # Si activan el checkbox, mostrar descripción
-                if ver_detalles:
-                    descripcion = obtener_descripcion_producto(row['Nombre'])
-                    st.info(f"ℹ️ {descripcion}")
-        else:
-            st.warning("⚠️ No encontramos productos relevantes en tu catálogo.")
+    if not resultados_directos.empty:
+        st.success("✅ Encontramos productos directamente relacionados a tu necesidad:")
+        for index, row in resultados_directos.iterrows():
+            col1, col2 = st.columns([0.1, 0.9])
+            with col1:
+                ver_detalles = st.checkbox("", key=f"directo_{row['Código']}")
+            with col2:
+                st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
+            if ver_detalles:
+                descripcion = obtener_descripcion_producto(row['Nombre'])
+                st.info(f"ℹ️ {descripcion}")
     else:
-        st.warning("⚠️ No se pudieron generar palabras clave. Intenta describir tu necesidad de otra forma.")
+        st.info("🔎 No encontramos coincidencias literales, preguntando al asesor experto...")
+        palabras_clave = obtener_palabras_clave(consulta_necesidad)
+
+        if palabras_clave:
+            st.success(f"✅ Basado en tu necesidad, se buscarán productos relacionados con: {', '.join(palabras_clave)}")
+
+            # Búsqueda usando palabras clave generadas
+            filtro = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
+            resultados = df_productos[filtro]
+            resultados = resultados[resultados['Nombre'].apply(es_producto_valido)]
+
+            if not resultados.empty:
+                st.subheader("🎯 Productos sugeridos:")
+                for index, row in resultados.iterrows():
+                    col1, col2 = st.columns([0.1, 0.9])
+                    with col1:
+                        ver_detalles = st.checkbox("", key=f"detalle_{row['Código']}")
+                    with col2:
+                        st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
+                    if ver_detalles:
+                        descripcion = obtener_descripcion_producto(row['Nombre'])
+                        st.info(f"ℹ️ {descripcion}")
+            else:
+                st.warning("⚠️ No encontramos productos relacionados en tu catálogo.")
+        else:
+            st.warning("⚠️ No se pudieron generar palabras clave. Intenta describir tu necesidad de otra forma.")
