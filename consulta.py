@@ -7,7 +7,7 @@ import unicodedata
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Función para cargar el catálogo naturista
+# Función para cargar el catálogo
 @st.cache_data
 def cargar_catalogo():
     try:
@@ -16,27 +16,12 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para limpiar texto (eliminar acentos y pasar a minúsculas)
-def limpiar_texto(texto):
+# Función para normalizar texto (quitar acentos y minúsculas)
+def normalizar(texto):
     if not isinstance(texto, str):
         return ""
-    texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
-    return texto.lower()
-
-# Función para extraer posibles ingredientes mencionados en la respuesta de OpenAI
-def extraer_ingredientes_de_respuesta(texto):
-    posibles = [
-        "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
-        "zinc", "vitamina", "probiotico", "spirulina", "ginkgo", "pasiflora", "hierba de sapo",
-        "cuachalalate", "colageno", "magnesio", "resveratrol", "espirulina", "melatonina", "te verde",
-        "eufrasia", "carbon activado"
-    ]
-    encontrados = []
-    texto = limpiar_texto(texto)
-    for palabra in posibles:
-        if palabra in texto:
-            encontrados.append(palabra)
-    return list(set(encontrados))
+    texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8').lower()
+    return texto
 
 # Función para consultar OpenAI sobre suplementos
 def consultar_openai_suplementos(consulta):
@@ -60,12 +45,28 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Cargar catálogo
-df_productos = cargar_catalogo()
-if not df_productos.empty:
-    df_productos.columns = df_productos.columns.str.strip().str.lower()
+# Función para extraer ingredientes y presentaciones
 
-# Categorías que no deben mostrarse
+def extraer_ingredientes_y_presentaciones(texto):
+    texto = normalizar(texto)
+    ingredientes_comunes = [
+        "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
+        "zinc", "vitamina", "probiotico", "espirulina", "melatonina", "colageno",
+        "resveratrol", "hierba de sapo", "cuachalalate", "ginkgo", "te verde", "carbon activado"
+    ]
+    presentaciones_comunes = ["gotas", "colirio", "ojos", "vision", "ocular"]
+
+    ingredientes_detectados = [i for i in ingredientes_comunes if i in texto]
+    presentaciones_detectadas = [p for p in presentaciones_comunes if p in texto]
+    
+    return ingredientes_detectados, presentaciones_detectadas
+
+# Cargar catálogo
+catalogo = cargar_catalogo()
+if not catalogo.empty:
+    catalogo.columns = catalogo.columns.str.strip().str.lower()
+
+nombre_columna_categoria = catalogo.columns[4]
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
 # Interfaz
@@ -81,44 +82,40 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
+    ingredientes, presentaciones = extraer_ingredientes_y_presentaciones(respuesta_openai + " " + consulta_usuario)
 
-    # Buscar productos relacionados si el usuario quiere
-    buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
+    if ingredientes or presentaciones:
+        st.markdown("\n🔎 Detectamos estos criterios de búsqueda:")
+        st.write(", ".join(ingredientes + presentaciones))
 
-    if buscar_productos:
-        productos_relevantes = pd.DataFrame()
-        nombre_columna_categoria = df_productos.columns[4]
+        buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados?")
 
-        if not ingredientes_detectados:
-            # Si no detectamos ingredientes, usamos la consulta del usuario directamente
-            ingredientes_detectados = re.findall(r'\b[a-záéíóúñ]+\b', limpiar_texto(consulta_usuario))
+        if buscar_productos:
+            productos_relevantes = pd.DataFrame()
+            nombre_columna_categoria = catalogo.columns[4]
 
-        # Limpiar nombres de catálogo
-        df_productos['nombre_limpio'] = df_productos['nombre'].apply(limpiar_texto)
-        df_productos['categoria_limpio'] = df_productos[nombre_columna_categoria].apply(limpiar_texto)
+            for keyword in ingredientes + presentaciones:
+                coincidencias_nombre = catalogo[catalogo['nombre'].apply(normalizar).str.contains(keyword, na=False)]
+                coincidencias_categoria = catalogo[catalogo[nombre_columna_categoria].apply(normalizar).str.contains(keyword, na=False)]
+                productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
-        for ingrediente in ingredientes_detectados:
-            coincidencias_nombre = df_productos[df_productos['nombre_limpio'].str.contains(ingrediente, na=False)]
-            coincidencias_categoria = df_productos[df_productos['categoria_limpio'].str.contains(ingrediente, na=False)]
-            productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
+            productos_relevantes = productos_relevantes.drop_duplicates()
 
-        productos_relevantes = productos_relevantes.drop_duplicates()
+            productos_filtrados = productos_relevantes[
+                ~catalogo[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
+            ].sort_values(by='nombre')
 
-        # Filtrar para excluir ciertas categorías
-        productos_filtrados = productos_relevantes[
-            ~productos_relevantes[nombre_columna_categoria].str.lower().isin(categorias_excluidas)
-        ].sort_values(by='nombre')
-
-        if not productos_filtrados.empty:
-            st.subheader("🎯 Productos sugeridos:")
-            for idx, row in productos_filtrados.iterrows():
-                try:
-                    codigo = str(row.iloc[0])
-                    nombre = row['nombre']
-                    precio = float(row['precio de venta con iva'])
-                    st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
-                except:
-                    continue
-        else:
-            st.warning("⚠️ No se encontraron productos relevantes en catálogo.")
+            if not productos_filtrados.empty:
+                st.subheader("🎯 Productos sugeridos:")
+                for idx, row in productos_filtrados.iterrows():
+                    try:
+                        codigo = str(row.iloc[0])
+                        nombre = row['nombre']
+                        precio = float(row['precio de venta con iva'])
+                        st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+                    except:
+                        continue
+            else:
+                st.warning("⚠️ No se encontraron productos relevantes en catálogo.")
+    else:
+        st.warning("⚠️ No detectamos criterios claros para buscar productos relacionados.")
