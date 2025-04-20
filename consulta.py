@@ -51,7 +51,7 @@ def clasificar_necesidad(texto_usuario):
     for palabra, categoria in mapa_categorias.items():
         if palabra in texto_usuario:
             return categoria
-    return None  # No encontró ninguna categoría
+    return None
 
 # Función para obtener una breve descripción de un producto
 def obtener_descripcion_producto(nombre_producto):
@@ -83,7 +83,7 @@ df_productos = cargar_catalogo()
 df_productos.columns = df_productos.columns.str.strip().str.lower()
 
 # Detectar automáticamente la columna de categoría (5ta columna)
-nombre_columna_categoria = df_productos.columns[4]  # 0,1,2,3,4
+nombre_columna_categoria = df_productos.columns[4]  # índice 4 = quinta columna
 
 # Título principal
 st.title("🔎 Consulta - Karolo")
@@ -125,15 +125,23 @@ if consulta_necesidad:
         if not productos_categoria.empty:
             st.subheader("🎯 Productos sugeridos:")
 
-            for index, row in productos_categoria.iterrows():
-                col1, col2 = st.columns([0.1, 0.9])
-                with col1:
-                    ver_detalles = st.checkbox("", key=f"detalle_{row['código']}")
-                with col2:
-                    st.write(f"🔹 **Código: {row['código']}** - {row['nombre']} - **Precio:** ${int(row['precio de venta con iva'])}")
-                if ver_detalles:
-                    descripcion = obtener_descripcion_producto(row['nombre'])
-                    st.info(f"ℹ️ {descripcion}")
+            # Crear lista de opciones para selección única
+            opciones = [f"{row['código']} - {row['nombre']}" for idx, row in productos_categoria.iterrows()]
+            
+            seleccionado = st.radio(
+                "Selecciona un producto para ver detalles:",
+                opciones,
+                index=None
+            )
+
+            if seleccionado:
+                # Extraer el código del producto seleccionado
+                codigo_seleccionado = seleccionado.split(" - ")[0]
+                producto_seleccionado = productos_categoria[productos_categoria['código'] == codigo_seleccionado].iloc[0]
+                
+                descripcion = obtener_descripcion_producto(producto_seleccionado['nombre'])
+                
+                st.info(f"🔹 **{producto_seleccionado['nombre']}**\n\nℹ️ {descripcion}")
         else:
             st.warning(f"⚠️ No encontramos productos para la categoría detectada: **{categoria_detectada.capitalize()}**.")
 
