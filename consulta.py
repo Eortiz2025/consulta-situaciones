@@ -17,9 +17,13 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para eliminar acentos
-def eliminar_acentos(texto):
-    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+# Función para normalizar texto (sin acentos)
+def normalizar_texto(texto):
+    if isinstance(texto, str):
+        texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
+        return texto.lower()
+    else:
+        return ""
 
 # Función para consultar OpenAI sobre suplementos
 def consultar_openai_suplementos(consulta):
@@ -33,6 +37,7 @@ def consultar_openai_suplementos(consulta):
 Tu tarea es recomendar suplementos o ingredientes naturales que puedan ayudar a aliviar o apoyar de forma complementaria el malestar, síntoma o condición que te describa el usuario.
 Siempre responde mencionando directamente suplementos naturistas o ingredientes activos.
 Evita dar consejos médicos, diagnósticos o recomendar consultas a médicos.
+No uses frases genéricas como 'consulta a un profesional'.
 Limítate a sugerir suplementos o combinaciones de suplementos que sean comunes en el ámbito naturista.
 Sé concreto, breve y claro en tus recomendaciones."""},
                 {"role": "user", "content": consulta}
@@ -42,28 +47,31 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para detectar posibles ingredientes de la respuesta
-def detectar_ingredientes(respuesta):
-    ingredientes_clave = [
-        "cúrcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre",
-        "menta", "zinc", "vitamina", "probiotico", "espirulina", "spirulina",
-        "ginkgo", "pasiflora", "hierba de sapo", "cuachalalate", "colágeno",
-        "magnesio", "resveratrol", "melatonina", "té verde", "maca", "ginseng",
-        "triptófano", "carbon activado", "lactobacillus", "luteína"
-    ]
-    respuesta_sin_acentos = eliminar_acentos(respuesta.lower())
-    encontrados = []
-    for ingrediente in ingredientes_clave:
-        if eliminar_acentos(ingrediente) in respuesta_sin_acentos:
-            encontrados.append(ingrediente)
-    return list(set(encontrados))
+# Función para buscar productos por ingredientes detectados
+def buscar_productos_relacionados(df, respuesta_openai):
+    ingredientes = []
+    respuesta_normalizada = normalizar_texto(respuesta_openai)
+    palabras = set(respuesta_normalizada.split())
 
-# Función para registrar historial
-def guardar_en_historial(fecha, consulta, ingredientes):
+    posibles_ingredientes = [
+        "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
+        "zinc", "vitamina", "probiotico", "spirulina", "espirulina", "pasiflora", "hierba", 
+        "cuachalalate", "colageno", "magnesio", "resveratrol", "melatonina", "triptófano", "luteina"
+    ]
+
+    for ingrediente in posibles_ingredientes:
+        if ingrediente in palabras:
+            ingredientes.append(ingrediente)
+
+    return list(set(ingredientes))
+
+# Función para guardar el historial
+def guardar_en_historial(consulta, ingredientes):
+    fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     nuevo_registro = pd.DataFrame({
-        'Fecha y hora': [fecha],
-        'Consulta': [consulta],
-        'Ingredientes detectados': [", ".join(ingredientes)]
+        "Fecha y hora": [fecha_hora],
+        "Consulta": [consulta],
+        "Ingredientes detectados": [", ".join(ingredientes)]
     })
     try:
         historial_existente = pd.read_csv('historial_consultas.csv')
@@ -95,11 +103,10 @@ if consulta_usuario:
 
     st.success(f"ℹ️ {respuesta_openai}")
 
-    ingredientes_detectados = detectar_ingredientes(respuesta_openai)
+    ingredientes_detectados = buscar_productos_relacionados(df_productos, respuesta_openai)
 
-    # Guardar automáticamente en historial
-    fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    guardar_en_historial(fecha_actual, consulta_usuario, ingredientes_detectados)
+    # Guardar en historial
+    guardar_en_historial(consulta_usuario, ingredientes_detectados)
 
     if ingredientes_detectados:
         st.markdown("🔎 Detectamos estos criterios de búsqueda:")
@@ -112,15 +119,18 @@ if consulta_usuario:
             nombre_columna_categoria = df_productos.columns[4]
 
             for ingrediente in ingredientes_detectados:
-                coincidencias_nombre = df_productos[df_productos['nombre'].str.contains(ingrediente, case=False, na=False)]
-                coincidencias_categoria = df_productos[df_productos[nombre_columna_categoria].astype(str).str.contains(ingrediente, case=False, na=False)]
+                coincidencias_nombre = df_productos[
+                    df_productos['nombre'].apply(normalizar_texto).str.contains(ingrediente, na=False)
+                ]
+                coincidencias_categoria = df_productos[
+                    df_productos[nombre_columna_categoria].apply(normalizar_texto).str.contains(ingrediente, na=False)
+                ]
                 productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
             productos_relevantes = productos_relevantes.drop_duplicates()
 
-            # Filtrar para excluir ciertas categorías
             productos_filtrados = productos_relevantes[
-                ~df_productos[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
+                ~productos_relevantes[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
             ].sort_values(by='nombre')
 
             if not productos_filtrados.empty:
