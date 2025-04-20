@@ -102,7 +102,7 @@ if consulta_necesidad:
                 nombre = row['nombre']
                 precio = int(row['precio de venta con iva'])
 
-                st.write(f"🔹 **Código:** {codigo} | **Nombre:** {nombre} | **Precio:** ${precio}")
+                st.write(f"{codigo} | {nombre} | ${precio}")
 
         else:
             st.warning(f"⚠️ No se encontraron productos relacionados con: **{categoria_detectada.capitalize()}**.")
