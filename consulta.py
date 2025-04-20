@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
+from duckduckgo_search import ddg_images
 
 # Función para cargar el catálogo
 @st.cache_data
@@ -9,22 +8,12 @@ def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Función para buscar imagen en Google Images usando Código EAN
-def buscar_imagen_google(ean):
-    query = ean
-    url = f"https://www.google.com/search?hl=es&tbm=isch&q={query}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
-    }
-
+# Función para buscar imagen en DuckDuckGo usando Código EAN
+def buscar_imagen_duckduckgo(ean):
     try:
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, "html.parser")
-        images = soup.find_all("img")
-
-        if len(images) > 1:
-            imagen_url = images[1]["src"]  # La primera es el logo, la segunda ya es producto
-            return imagen_url
+        resultados = ddg_images(ean, max_results=1)
+        if resultados:
+            return resultados[0]['image']
         else:
             return None
     except Exception as e:
@@ -34,7 +23,7 @@ def buscar_imagen_google(ean):
 df_productos = cargar_catalogo()
 
 # Título principal
-st.title("🔎 Consulta de Productos - Naturista (con imágenes vía Código EAN)")
+st.title("🔎 Consulta de Productos - Naturista (con imágenes vía DuckDuckGo)")
 
 # Tipo de búsqueda
 tipo_busqueda = st.selectbox(
@@ -55,7 +44,7 @@ if tipo_busqueda == "Por Nombre":
             # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"prod_{index}"):
-                    imagen_url = buscar_imagen_google(str(row['Código EAN']))
+                    imagen_url = buscar_imagen_duckduckgo(str(row['Código EAN']))
 
                     if imagen_url:
                         st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
@@ -78,7 +67,7 @@ elif tipo_busqueda == "Por Serie":
             # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"serie_{index}"):
-                    imagen_url = buscar_imagen_google(str(row['Código EAN']))
+                    imagen_url = buscar_imagen_duckduckgo(str(row['Código EAN']))
 
                     if imagen_url:
                         st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
