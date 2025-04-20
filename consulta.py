@@ -19,9 +19,6 @@ Eres un experto en suplementos naturistas.
 Basándote en la necesidad que describe el usuario ("{necesidad_usuario}"),
 enumera de manera breve 5 a 10 ingredientes o suplementos naturales que puedan ayudar a esta necesidad.
 Proporciona solo una lista separada por comas, sin explicaciones.
-
-Ejemplo:
-ajo negro, ginkgo biloba, cúrcuma, omega 3
 """
     try:
         respuesta = openai.ChatCompletion.create(
@@ -58,85 +55,78 @@ No repitas el nombre ni inventes efectos médicos exagerados.
                 {"role": "user", "content": prompt}
             ]
         )
-        descripcion = respuesta.choices[0].message['content'].strip()
-        return descripcion
+        return respuesta.choices[0].message['content'].strip()
     except Exception as e:
         return f"❌ Error: {e}"
 
-# Función de filtro para evitar productos inadecuados
+# Función para filtrar productos no adecuados
 def es_producto_valido(nombre):
     palabras_prohibidas = ['incienso', 'shampoo', 'jabón', 'jabon', 'loción', 'locion', 'spray', 'aroma', 'ambientador']
-    return not any(prohibida in nombre.lower() for prohibida in palabras_prohibidas)
+    return not any(p in nombre.lower() for p in palabras_prohibidas)
 
 # Cargar catálogo
 df_productos = cargar_catalogo()
 
-# Título principal
+# Interfaz
 st.title("🔎 Consulta - Karolo")
-
-# Saludo inicial
 st.header("👋 Hola, ¿en qué puedo ayudarte hoy?")
 
-# Mensaje de orientación para el usuario
-st.markdown(
-    """
-    🧠 Puedes preguntarme libremente:
-    
-    - Quiero algo para la circulación
-    - ¿Qué recomiendas para fortalecer defensas?
-    - ¿Tienes algo para la diabetes?
-    - Me siento cansado, ¿qué puedo tomar?
+st.markdown("""
+🧠 Puedes preguntarme libremente:
 
-    ¡Estoy aquí para ayudarte! 🌟
-    """
-)
+- Quiero algo para la circulación  
+- ¿Qué recomiendas para fortalecer defensas?  
+- ¿Tienes algo para la diabetes?  
+- Me siento cansado, ¿qué puedo tomar?
 
-# Entrada del usuario
+¡Estoy aquí para ayudarte! 🌟
+""")
+
 consulta_necesidad = st.text_input("Escribe tu necesidad:")
 
 if consulta_necesidad:
-    st.info("🔎 Buscando coincidencias directas en catálogo...")
+    st.info("🔎 Buscando coincidencias por palabras clave...")
 
-    # Primera búsqueda: literal usando la pregunta del usuario
-    filtro_directo = df_productos['Nombre'].str.contains(consulta_necesidad, case=False, na=False)
+    # Convertir la consulta a palabras clave individuales
+    palabras_usuario = re.findall(r'\b\w+\b', consulta_necesidad.lower())
+    filtro_directo = df_productos['Nombre'].str.contains('|'.join(palabras_usuario), case=False, na=False)
     resultados_directos = df_productos[filtro_directo]
     resultados_directos = resultados_directos[resultados_directos['Nombre'].apply(es_producto_valido)]
 
     if not resultados_directos.empty:
-        st.success("✅ Encontramos productos directamente relacionados a tu necesidad:")
-        for index, row in resultados_directos.iterrows():
+        st.success("✅ Encontramos productos directamente relacionados con tu consulta:")
+        for _, row in resultados_directos.iterrows():
             col1, col2 = st.columns([0.1, 0.9])
             with col1:
-                ver_detalles = st.checkbox("", key=f"directo_{row['Código']}")
+                ver = st.checkbox("", key=f"directo_{row['Código']}")
             with col2:
                 st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
-            if ver_detalles:
+            if ver:
                 descripcion = obtener_descripcion_producto(row['Nombre'])
                 st.info(f"ℹ️ {descripcion}")
     else:
-        st.info("🔎 No encontramos coincidencias literales, preguntando al asesor experto...")
+        st.info("🤖 No hubo coincidencias directas. Consultando al asesor experto...")
         palabras_clave = obtener_palabras_clave(consulta_necesidad)
 
         if palabras_clave:
-            st.success(f"✅ Basado en tu necesidad, se buscarán productos relacionados con: {', '.join(palabras_clave)}")
+            st.success(f"🔍 Buscando con las palabras sugeridas por el asesor: {', '.join(palabras_clave)}")
 
-            # Búsqueda usando palabras clave generadas
             filtro = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
             resultados = df_productos[filtro]
             resultados = resultados[resultados['Nombre'].apply(es_producto_valido)]
 
             if not resultados.empty:
                 st.subheader("🎯 Productos sugeridos:")
-                for index, row in resultados.iterrows():
+                for _, row in resultados.iterrows():
                     col1, col2 = st.columns([0.1, 0.9])
                     with col1:
-                        ver_detalles = st.checkbox("", key=f"detalle_{row['Código']}")
+                        ver = st.checkbox("", key=f"detalle_{row['Código']}")
                     with col2:
                         st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
-                    if ver_detalles:
+                    if ver:
                         descripcion = obtener_descripcion_producto(row['Nombre'])
                         st.info(f"ℹ️ {descripcion}")
             else:
-                st.warning("⚠️ No encontramos productos relacionados en tu catálogo.")
+                st.warning("⚠️ No se encontraron productos con las palabras sugeridas.")
         else:
-            st.warning("⚠️ No se pudieron generar palabras clave. Intenta describir tu necesidad de otra forma.")
+            st.warning("⚠️ No se pudieron generar sugerencias. Reformula tu pregunta si deseas.")
