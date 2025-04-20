@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-import wikipediaapi
+import requests
+from bs4 import BeautifulSoup
 
 # Función para cargar el catálogo
 @st.cache_data
@@ -8,25 +9,32 @@ def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Función corregida para buscar en Wikipedia
-def buscar_en_wikipedia(producto):
-    wiki_wiki = wikipediaapi.Wikipedia(
-        language='es',
-        extract_format=wikipediaapi.ExtractFormat.WIKI,
-        user_agent="ConsultaProductosNaturistaApp/1.0 (contacto@tuempresa.com)"
-    )
-    page = wiki_wiki.page(producto)
+# Función para buscar imagen en Google Images usando Código EAN
+def buscar_imagen_google(ean):
+    query = ean
+    url = f"https://www.google.com/search?hl=es&tbm=isch&q={query}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+    }
 
-    if page.exists():
-        return page.summary[:500]  # Trae máximo 500 caracteres
-    else:
-        return "No se encontró información disponible en Wikipedia."
+    try:
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.content, "html.parser")
+        images = soup.find_all("img")
 
-# Cargar los datos
+        if len(images) > 1:
+            imagen_url = images[1]["src"]  # La primera es el logo, la segunda ya es producto
+            return imagen_url
+        else:
+            return None
+    except Exception as e:
+        return None
+
+# Cargar datos
 df_productos = cargar_catalogo()
 
 # Título principal
-st.title("🔎 Consulta de Productos - Naturista")
+st.title("🔎 Consulta de Productos - Naturista (con imágenes vía Código EAN)")
 
 # Tipo de búsqueda
 tipo_busqueda = st.selectbox(
@@ -47,8 +55,12 @@ if tipo_busqueda == "Por Nombre":
             # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"prod_{index}"):
-                    descripcion = buscar_en_wikipedia(row['Nombre'])
-                    st.info(f"ℹ️ **{row['Nombre']}**: {descripcion}")
+                    imagen_url = buscar_imagen_google(str(row['Código EAN']))
+
+                    if imagen_url:
+                        st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
+                    else:
+                        st.warning("⚠️ Imagen no disponible para este producto.")
         else:
             st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 
@@ -66,7 +78,11 @@ elif tipo_busqueda == "Por Serie":
             # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"serie_{index}"):
-                    descripcion = buscar_en_wikipedia(row['Nombre'])
-                    st.info(f"ℹ️ **{row['Nombre']}**: {descripcion}")
+                    imagen_url = buscar_imagen_google(str(row['Código EAN']))
+
+                    if imagen_url:
+                        st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
+                    else:
+                        st.warning("⚠️ Imagen no disponible para este producto.")
         else:
             st.warning("⚠️ No se encontraron productos en esta serie.")
