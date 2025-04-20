@@ -2,22 +2,27 @@ import streamlit as st
 import pandas as pd
 import wikipediaapi
 
-# Cargar catálogo
+# Función para cargar el catálogo
 @st.cache_data
 def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Función para buscar en Wikipedia
+# Función corregida para buscar en Wikipedia
 def buscar_en_wikipedia(producto):
-    wiki_wiki = wikipediaapi.Wikipedia('es')  # idioma español
+    wiki_wiki = wikipediaapi.Wikipedia(
+        language='es',
+        extract_format=wikipediaapi.ExtractFormat.WIKI,
+        user_agent="ConsultaProductosNaturistaApp/1.0 (contacto@tuempresa.com)"
+    )
     page = wiki_wiki.page(producto)
 
     if page.exists():
-        return page.summary[:500]  # Resumen de máximo 500 caracteres
+        return page.summary[:500]  # Trae máximo 500 caracteres
     else:
         return "No se encontró información disponible en Wikipedia."
 
+# Cargar los datos
 df_productos = cargar_catalogo()
 
 # Título principal
