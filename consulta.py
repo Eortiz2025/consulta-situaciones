@@ -15,22 +15,20 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para detectar si es una consulta de beneficio
+# Función para detectar consulta sobre beneficio
 def detectar_consulta_beneficio(texto):
-    patrones = ["para qué sirve", "beneficio", "beneficios", "ayuda", "utilidad",
-                "para que sirve", "para que es bueno", "para qué es bueno", "qué beneficios", "qué hace"]
+    patrones = ["para qué sirve", "beneficio", "beneficios", "ayuda", "utilidad", "para que sirve", "para qué es bueno"]
     texto = texto.lower()
     return any(patron in texto for patron in patrones)
 
-# Función para extraer posible ingrediente de la pregunta
+# Función para extraer ingrediente
 def extraer_ingrediente(texto):
     palabras = re.findall(r'\b[a-záéíóúñ]+\b', texto.lower())
-    exclusiones = {"para", "qué", "sirve", "beneficio", "beneficios", "ayuda", "utilidad",
-                   "es", "el", "la", "los", "las", "un", "una", "de", "del", "en", "con", "y", "bueno", "hace"}
+    exclusiones = {"para", "qué", "sirve", "beneficio", "beneficios", "ayuda", "utilidad", "es", "el", "la", "los", "las", "un", "una", "de", "del", "en", "con", "y", "bueno", "hace"}
     ingredientes = [palabra for palabra in palabras if palabra not in exclusiones]
     return ingredientes[0] if ingredientes else ""
 
-# Función para preguntar a OpenAI sobre un beneficio
+# Función para preguntar a OpenAI sobre beneficios
 def consultar_openai_beneficio(ingrediente):
     mensaje_usuario = f"¿Para qué sirve el suplemento naturista {ingrediente}?"
     try:
@@ -39,7 +37,7 @@ def consultar_openai_beneficio(ingrediente):
             temperature=0.5,
             max_tokens=200,
             messages=[
-                {"role": "system", "content": "Eres un asesor experto en suplementos naturistas. Responde de forma clara, breve y sin prometer curas."},
+                {"role": "system", "content": "Eres un asesor experto en suplementos naturistas. Responde de forma breve, clara y sin prometer curas."},
                 {"role": "user", "content": mensaje_usuario}
             ]
         )
@@ -47,15 +45,14 @@ def consultar_openai_beneficio(ingrediente):
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para preguntar a OpenAI sobre un malestar
+# Función para consultar OpenAI sobre síntomas
 def consultar_openai_malestar(pregunta_usuario):
     mensaje_usuario = f"""
 Eres un asesor experto en suplementos naturistas.
 
 Un usuario te pregunta: '{pregunta_usuario}'.
-Sugiere de forma breve y responsable suplementos naturistas que podrían apoyar esa situación.
-Nunca hagas diagnóstico médico. Siempre sugiere consultar a un profesional de la salud si el síntoma persiste.
-Menciona los ingredientes principales recomendados en tu respuesta.
+Sugiere de forma breve suplementos naturistas que podrían apoyar esa situación.
+Nunca prometas curas. Siempre recomienda consultar a un profesional de la salud si los síntomas persisten.
 """
     try:
         respuesta = openai.ChatCompletion.create(
@@ -71,37 +68,6 @@ Menciona los ingredientes principales recomendados en tu respuesta.
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para extraer posibles ingredientes de una respuesta de OpenAI
-def extraer_ingredientes_respuesta(respuesta_openai):
-    palabras = re.findall(r'\b[a-zA-ZáéíóúñÁÉÍÓÚÑ]+\b', respuesta_openai.lower())
-    comunes = {"el", "la", "los", "las", "un", "una", "y", "de", "del", "para", "que", "en", "con", "suplemento", "suplementos", "naturista", "naturistas", "puede", "podría", "ayuda", "ayudar", "aliviar", "síntomas", "consultar", "profesional", "salud"}
-    ingredientes = [p for p in palabras if p not in comunes and len(p) > 3]
-    return list(set(ingredientes))
-
-# Función para buscar productos por ingredientes en Categoría (5ta columna) y Nombre
-def buscar_productos_por_ingredientes(df, ingredientes):
-    resultados = pd.DataFrame()
-    try:
-        columna_categoria = df.iloc[:, 4]  # 5ta columna
-    except Exception as e:
-        st.error(f"❌ Error accediendo a la columna de categoría: {e}")
-        return resultados
-
-    for ingrediente in ingredientes:
-        coincidencias_categoria = df[columna_categoria.astype(str).str.contains(ingrediente, case=False, na=False)]
-        coincidencias_nombre = df[df['nombre'].astype(str).str.contains(ingrediente, case=False, na=False)]
-        resultados = pd.concat([resultados, coincidencias_categoria, coincidencias_nombre])
-    resultados = resultados.drop_duplicates()
-
-    # Aplicar filtro para excluir productos no deseados
-    palabras_excluir = ["jabón", "shampoo", "gel", "crema", "desodorante", "pomada", "spray", "cosmético", "loción", "perfume", "sabon", "barra", "protector", "ungüento"]
-    resultados = resultados[~resultados['nombre'].str.lower().str.contains('|'.join(palabras_excluir))]
-
-    # Ordenar alfabéticamente por nombre
-    resultados = resultados.sort_values(by='nombre')
-
-    return resultados
-
 # Cargar catálogo
 df_productos = cargar_catalogo()
 if not df_productos.empty:
@@ -112,54 +78,50 @@ st.title("🔎 Consulta - Karolo")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
 
 st.markdown("""
-Puedes preguntarme:
+Ejemplos de preguntas que puedes hacer:
 
-- Quiero algo para la circulación
 - ¿Qué recomiendas para fortalecer defensas?
 - ¿Tienes algo para la diabetes?
 - ¿Para qué sirve el zinc?
 - Tengo dolor de cabeza
-- Tengo diarrea
-- Tengo cólico
 """)
-
-tipo_consulta = st.radio(
-    "Selecciona el tipo de consulta:",
-    ("Consulta por producto o beneficio", "Consulta por síntoma o malestar")
-)
 
 consulta_usuario = st.text_input("✍️ Escribe tu necesidad o pregunta:")
 
 if consulta_usuario:
-    st.info("🔎 Analizando tu consulta...")
+    st.info(f"🔎 Procesando tu consulta: {consulta_usuario}")
 
-    if tipo_consulta == "Consulta por producto o beneficio":
-        if detectar_consulta_beneficio(consulta_usuario):
-            ingrediente = extraer_ingrediente(consulta_usuario)
-            if ingrediente:
-                st.success(f"✅ Consulta detectada sobre ingrediente: **{ingrediente.capitalize()}**")
-                with st.spinner("Consultando experto..."):
-                    descripcion = consultar_openai_beneficio(ingrediente)
-                st.info(f"ℹ️ {descripcion}")
-            else:
-                st.warning("⚠️ No se pudo identificar claramente el ingrediente.")
+    if detectar_consulta_beneficio(consulta_usuario):
+        ingrediente = extraer_ingrediente(consulta_usuario)
+        if ingrediente:
+            st.success(f"✅ Consulta detectada sobre ingrediente: **{ingrediente.capitalize()}**")
+            with st.spinner("Consultando experto..."):
+                descripcion = consultar_openai_beneficio(ingrediente)
+            st.info(f"ℹ️ {descripcion}")
         else:
-            st.warning("⚠️ No se detectó un ingrediente específico.")
+            st.warning("⚠️ No se pudo identificar claramente el ingrediente.")
     else:
-        st.success("✅ Consulta tipo síntoma detectada.")
-        with st.spinner("Consultando experto naturista..."):
+        with st.spinner("Consultando experto sobre tu malestar..."):
             respuesta_openai = consultar_openai_malestar(consulta_usuario)
-        st.info(f"ℹ️ {respuesta_openai}")
+        st.success(f"ℹ️ {respuesta_openai}")
 
-        buscar_productos = st.checkbox("🔎 ¿Quieres ver si tenemos productos recomendados para esto?")
-        if buscar_productos:
-            if not df_productos.empty:
-                ingredientes_detectados = extraer_ingredientes_respuesta(respuesta_openai)
-                if ingredientes_detectados:
-                    productos_encontrados = buscar_productos_por_ingredientes(df_productos, ingredientes_detectados)
-                    if not productos_encontrados.empty:
-                        st.subheader("🎯 Productos recomendados según tu necesidad:")
-                        for idx, row in productos_encontrados.iterrows():
+        buscar_productos = st.checkbox("🔎 ¿Quieres ver si tenemos productos relacionados?")
+        if buscar_productos and not df_productos.empty:
+            categoria_busqueda = ""
+            if "diabetes" in consulta_usuario.lower():
+                categoria_busqueda = "diabetes"
+            elif "defensas" in consulta_usuario.lower():
+                categoria_busqueda = "vitaminas"
+            elif "cabeza" in consulta_usuario.lower():
+                categoria_busqueda = "tranquilidad"
+
+            if categoria_busqueda:
+                try:
+                    productos = df_productos[df_productos.iloc[:, 4].astype(str).str.contains(categoria_busqueda, case=False, na=False)]
+                    productos = productos.sort_values(by='nombre')
+                    if not productos.empty:
+                        st.subheader("🎯 Productos recomendados:")
+                        for idx, row in productos.iterrows():
                             try:
                                 codigo = str(row.iloc[0])
                                 nombre = row['nombre']
@@ -168,8 +130,6 @@ if consulta_usuario:
                             except:
                                 continue
                     else:
-                        st.warning("⚠️ No se encontraron productos exactos para los ingredientes sugeridos.")
-                else:
-                    st.warning("⚠️ No se detectaron ingredientes específicos en la respuesta.")
-            else:
-                st.error("❌ No se pudo cargar el catálogo de productos.")
+                        st.warning("⚠️ No se encontraron productos relacionados en el catálogo.")
+                except Exception as e:
+                    st.error(f"❌ Error al buscar productos: {e}")
