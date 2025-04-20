@@ -1,87 +1,73 @@
 import streamlit as st
 import pandas as pd
 import openai
+import re
 
-# Configurar tu API Key de OpenAI desde secrets (opcional, futuro uso)
-openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
+# Cargar API Key de OpenAI
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Función para cargar el catálogo naturista
 @st.cache_data
 def cargar_catalogo():
-    df = pd.read_excel('naturista.xlsx')
-    return df
+    return pd.read_excel('naturista.xlsx')
+
+# Función para preguntar a ChatGPT qué ingredientes o suplementos ayudarían
+def obtener_palabras_clave(necesidad_usuario):
+    prompt = f"""
+Eres un experto en suplementos naturistas.
+
+Basándote en la necesidad que describe el usuario ("{necesidad_usuario}"),
+enumera de manera breve 5 a 10 ingredientes o suplementos naturales que puedan ayudar a esta necesidad.
+Solo proporciona una lista separada por comas. No expliques nada adicional.
+
+Ejemplo de formato:
+ajo negro, ginkgo biloba, cúrcuma, omega 3
+"""
+
+    try:
+        respuesta = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            temperature=0.5,
+            max_tokens=150,
+            messages=[
+                {"role": "system", "content": "Eres un asesor de suplementos naturistas."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        texto = respuesta.choices[0].message['content'].strip()
+        palabras_clave = [palabra.strip().lower() for palabra in texto.split(',')]
+        return palabras_clave
+    except Exception as e:
+        st.error(f"❌ Error en la conexión a OpenAI: {e}")
+        return []
 
 # Cargar catálogo
 df_productos = cargar_catalogo()
 
-# Título principal
-st.title("🔎 Consulta - Karolo")
+# Título de la app
+st.title("🔎 Consulta - Karolo (Flujo Inteligente)")
 
-# =========================================
-# 🔍 Buscar Producto por Nombre
-# =========================================
-st.header("🔍 Buscar Producto por Nombre")
+# Ingresar necesidad libre
+st.header("🩺 ¿Qué necesidad tienes? (Describe libremente)")
 
-busqueda_nombre = st.text_input("Escribe el nombre o parte del nombre del producto:")
-
-if busqueda_nombre:
-    resultados = df_productos[df_productos['Nombre'].str.contains(busqueda_nombre, case=False, na=False)]
-
-    if not resultados.empty:
-        st.success(f"✅ Se encontraron {len(resultados)} productos relacionados:")
-        for index, row in resultados.iterrows():
-            st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
-    else:
-        st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
-
-# =========================================
-# 🩺 Buscar Productos por Necesidad de Salud (Detección Automática)
-# =========================================
-st.header("🩺 Buscar Productos por Necesidad de Salud (Describe Libremente)")
-
-consulta_necesidad = st.text_input("Describe tu necesidad o problema de salud:")
+consulta_necesidad = st.text_input("Por ejemplo: circulación, hígado, defensas, cansancio...")
 
 if consulta_necesidad:
-    necesidades = {
-        'circulación': ['circulación', 'vascular', 'cardio', 'corazón', 'arterias', 'venas', 'sangre'],
-        'próstata': ['próstata', 'prostata', 'prost', 'saw palmetto', 'serenoa', 'pygeum'],
-        'diabetes': ['diabetes', 'glucosa', 'gluco', 'sugar', 'azúcar'],
-        'hígado': ['hígado', 'higado', 'cardo mariano', 'silimarina', 'biliar', 'desintoxicación'],
-        'inmunidad': ['defensas', 'inmunidad', 'inmune', 'vitamina c', 'equinácea', 'propóleo'],
-        'cansancio': ['energía', 'energy', 'cansancio', 'fatiga', 'vitalidad', 'ginseng', 'guaraná'],
-        'digestión': ['digestión', 'digestivo', 'probiótico', 'fibra', 'laxante', 'prebiótico'],
-        'colesterol': ['colesterol', 'triglicéridos', 'cardio'],
-        'control de peso': ['peso', 'obesidad', 'control de peso', 'metabolismo', 'quemador', 'slim', 'delgax'],
-        'osteoporosis': ['calcio', 'huesos', 'osteoporosis', 'articulaciones', 'condroitina', 'glucosamina'],
-        'piel y cabello': ['colágeno', 'biotina', 'ácido hialurónico', 'shampoo', 'piel', 'cabello'],
-        'relajación y sueño': ['melatonina', 'relax', 'sueño', 'insomnio', 'calmante', 'ansiedad'],
-        'vista': ['vista', 'ojos', 'visión', 'luteína'],
-        'riñones': ['riñón', 'riñones', 'renal', 'urinario'],
-        'menopausia': ['menopausia', 'soya', 'climaterio', 'isoflavonas'],
-    }
+    st.info("🔎 Consultando al asesor experto en suplementos naturistas...")
+    palabras_clave = obtener_palabras_clave(consulta_necesidad)
 
-    # Detección automática de necesidad
-    consulta_detectada = None
-    consulta_texto = consulta_necesidad.lower()
+    if palabras_clave:
+        st.success(f"✅ Basado en tu necesidad, se buscarán productos relacionados con: {', '.join(palabras_clave)}")
 
-    for necesidad, palabras in necesidades.items():
-        for palabra in palabras:
-            if palabra in consulta_texto:
-                consulta_detectada = necesidad
-                break
-        if consulta_detectada:
-            break
+        # Buscar productos que contengan alguna palabra clave
+        filtro = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
+        resultados = df_productos[filtro]
 
-    if consulta_detectada:
-        palabras_clave = necesidades[consulta_detectada]
-        filtro_necesidad = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
-        resultados_necesidad = df_productos[filtro_necesidad]
-
-        if not resultados_necesidad.empty:
-            st.success(f"✅ Basado en tu necesidad relacionada con **{consulta_detectada}**, encontramos estos productos:")
-            for index, row in resultados_necesidad.iterrows():
+        if not resultados.empty:
+            st.subheader("🎯 Productos sugeridos:")
+            for index, row in resultados.iterrows():
                 st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
         else:
-            st.warning(f"⚠️ No encontramos productos en el catálogo para '{consulta_detectada}'.")
+            st.warning("⚠️ No encontramos productos relacionados en el catálogo.")
     else:
-        st.warning("⚠️ No detectamos un área de consulta relacionada. Intenta describir tu necesidad de otra forma.")
+        st.warning("⚠️ No se pudieron generar palabras clave. Intenta reformular tu necesidad.")
