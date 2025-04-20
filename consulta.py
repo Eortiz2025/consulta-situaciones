@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import openai
 
-# Configurar tu API Key de OpenAI desde secrets (para futuras funciones si quieres usar IA)
+# Configurar tu API Key de OpenAI desde secrets (opcional para futura expansión)
 openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
 
 # Función para cargar el catálogo naturista
@@ -17,7 +17,9 @@ df_productos = cargar_catalogo()
 # Título de la App
 st.title("🔎 Consulta - Karolo")
 
-# Búsqueda tradicional por nombre de producto
+# =========================================
+# Búsqueda tradicional por Nombre de producto
+# =========================================
 st.header("🔍 Buscar Producto por Nombre")
 
 busqueda_nombre = st.text_input("Escribe el nombre o parte del nombre del producto:")
@@ -26,31 +28,50 @@ if busqueda_nombre:
     resultados = df_productos[df_productos['Nombre'].str.contains(busqueda_nombre, case=False, na=False)]
 
     if not resultados.empty:
-        st.success(f"✅ Se encontraron {len(resultados)} productos relacionados con tu búsqueda:")
+        st.success(f"✅ Se encontraron {len(resultados)} productos relacionados:")
         for index, row in resultados.iterrows():
             st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
     else:
         st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 
-# Búsqueda por necesidad (nuevo módulo)
+# =========================================
+# Búsqueda por Necesidad de Salud Inteligente
+# =========================================
 st.header("🩺 Buscar Productos por Necesidad de Salud")
 
-consulta_necesidad = st.text_input("¿Qué necesidad tienes? (Ejemplo: circulación, próstata, diabetes)")
+consulta_necesidad = st.text_input("¿Qué necesidad tienes? (Ejemplo: circulación, próstata, diabetes, hígado, defensas, etc.)")
 
 if consulta_necesidad:
-    # Palabras clave relacionadas a cada necesidad
     necesidades = {
         'circulación': ['circulación', 'vascular', 'cardio', 'corazón', 'arterias', 'venas', 'sangre'],
         'próstata': ['próstata', 'prostata', 'prost', 'saw palmetto', 'serenoa', 'pygeum'],
         'diabetes': ['diabetes', 'glucosa', 'gluco', 'sugar', 'azúcar'],
-        'defensas': ['defensas', 'inmunidad', 'inmune', 'vitamina c', 'equinácea', 'propóleo']
+        'hígado': ['hígado', 'higado', 'cardo mariano', 'silimarina', 'biliar', 'desintoxicación'],
+        'inmunidad': ['defensas', 'inmunidad', 'inmune', 'vitamina c', 'equinácea', 'propóleo'],
+        'cansancio': ['energía', 'energy', 'cansancio', 'fatiga', 'vitalidad', 'ginseng', 'guaraná'],
+        'digestión': ['digestión', 'digestivo', 'probiótico', 'fibra', 'laxante', 'prebiótico'],
+        'colesterol': ['colesterol', 'triglicéridos', 'cardio'],
+        'control de peso': ['peso', 'obesidad', 'control de peso', 'metabolismo', 'quemador', 'slim', 'delgax'],
+        'osteoporosis': ['calcio', 'huesos', 'osteoporosis', 'articulaciones', 'condroitina', 'glucosamina'],
+        'piel y cabello': ['colágeno', 'biotina', 'ácido hialurónico', 'shampoo', 'piel', 'cabello'],
+        'relajación y sueño': ['melatonina', 'relax', 'sueño', 'insomnio', 'calmante', 'ansiedad'],
+        'vista': ['vista', 'ojos', 'visión', 'luteína'],
+        'riñones': ['riñón', 'riñones', 'renal', 'urinario'],
+        'menopausia': ['menopausia', 'soya', 'climaterio', 'isoflavonas'],
     }
 
-    # Buscar las palabras claves asociadas a la necesidad escrita
-    palabras_clave = necesidades.get(consulta_necesidad.lower(), [consulta_necesidad.lower()])
+    # Detectar la necesidad buscada (permitimos entrada libre)
+    palabras_clave = []
+    for necesidad, palabras in necesidades.items():
+        if consulta_necesidad.lower() in necesidad:
+            palabras_clave = palabras
+            break
 
+    if not palabras_clave:
+        palabras_clave = [consulta_necesidad.lower()]  # Buscar como palabra suelta
+
+    # Buscar en catálogo
     filtro_necesidad = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
-
     resultados_necesidad = df_productos[filtro_necesidad]
 
     if not resultados_necesidad.empty:
