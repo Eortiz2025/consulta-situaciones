@@ -12,37 +12,37 @@ def cargar_catalogo():
 
 # Tabla interna: palabras clave asociadas a categorías
 mapa_categorias = {
-    "visión": "Visión",
-    "vista": "Visión",
-    "ojos": "Visión",
-    "ocular": "Visión",
-    "circulación": "Circulacion",
-    "sangre": "Circulacion",
-    "varices": "Circulacion",
-    "energía": "Energia",
-    "cansancio": "Energia",
-    "fatiga": "Energia",
-    "defensas": "Vitaminas",
-    "inmunidad": "Vitaminas",
-    "gripas": "Vitaminas",
-    "digestión": "Digestion",
-    "estómago": "Digestion",
-    "colon": "Digestion",
-    "hígado": "Higado",
-    "desintoxicar": "Higado",
-    "articulaciones": "Articulaciones",
-    "rodillas": "Articulaciones",
-    "huesos": "Articulaciones",
-    "diabetes": "Diabetes",
-    "azúcar": "Diabetes",
-    "ansiedad": "Tranquilidad",
-    "dormir": "Tranquilidad",
-    "nervios": "Tranquilidad",
-    "pulmones": "Respiratorio",
-    "tos": "Respiratorio",
-    "bronquios": "Respiratorio",
-    "memoria": "Funcion cerebral",
-    "concentración": "Funcion cerebral",
+    "visión": "vision",
+    "vista": "vision",
+    "ojos": "vision",
+    "ocular": "vision",
+    "circulación": "circulacion",
+    "sangre": "circulacion",
+    "varices": "circulacion",
+    "energía": "energia",
+    "cansancio": "energia",
+    "fatiga": "energia",
+    "defensas": "vitaminas",
+    "inmunidad": "vitaminas",
+    "gripas": "vitaminas",
+    "digestión": "digestion",
+    "estómago": "digestion",
+    "colon": "digestion",
+    "hígado": "higado",
+    "desintoxicar": "higado",
+    "articulaciones": "articulaciones",
+    "rodillas": "articulaciones",
+    "huesos": "articulaciones",
+    "diabetes": "diabetes",
+    "azúcar": "diabetes",
+    "ansiedad": "tranquilidad",
+    "dormir": "tranquilidad",
+    "nervios": "tranquilidad",
+    "pulmones": "respiratorio",
+    "tos": "respiratorio",
+    "bronquios": "respiratorio",
+    "memoria": "funcion cerebral",
+    "concentración": "funcion cerebral",
 }
 
 # Función para clasificar automáticamente la necesidad
@@ -79,6 +79,9 @@ No repitas el nombre ni inventes efectos médicos exagerados.
 # Cargar catálogo
 df_productos = cargar_catalogo()
 
+# Limpiar nombres de columnas: quitar espacios, convertir a minúsculas
+df_productos.columns = df_productos.columns.str.strip().str.lower()
+
 # Título principal
 st.title("🔎 Consulta - Karolo")
 
@@ -108,13 +111,13 @@ if consulta_necesidad:
     categoria_detectada = clasificar_necesidad(consulta_necesidad)
 
     if categoria_detectada:
-        st.success(f"✅ Detectamos que buscas productos relacionados con: **{categoria_detectada}**")
+        st.success(f"✅ Detectamos que buscas productos relacionados con: **{categoria_detectada.capitalize()}**")
 
-        # Buscar productos de esa categoría (tomando la cuarta columna que sabemos es Categoria)
-        if "Categoria" in df_productos.columns:
-            productos_categoria = df_productos[df_productos['Categoria'].str.lower() == categoria_detectada.lower()]
+        # Buscar productos de esa categoría (usando ahora columna "categoria" limpia)
+        if "categoria" in df_productos.columns:
+            productos_categoria = df_productos[df_productos['categoria'].str.lower() == categoria_detectada.lower()]
         else:
-            st.error("❌ Error: No se encontró la columna 'Categoria' en el catálogo.")
+            st.error("❌ Error: No se encontró la columna 'categoria' en el catálogo.")
             productos_categoria = pd.DataFrame()
 
         if not productos_categoria.empty:
@@ -123,14 +126,14 @@ if consulta_necesidad:
             for index, row in productos_categoria.iterrows():
                 col1, col2 = st.columns([0.1, 0.9])
                 with col1:
-                    ver_detalles = st.checkbox("", key=f"detalle_{row['Código']}")
+                    ver_detalles = st.checkbox("", key=f"detalle_{row['código']}")
                 with col2:
-                    st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
+                    st.write(f"🔹 **Código: {row['código']}** - {row['nombre']} - **Precio:** ${int(row['precio de venta con iva'])}")
                 if ver_detalles:
-                    descripcion = obtener_descripcion_producto(row['Nombre'])
+                    descripcion = obtener_descripcion_producto(row['nombre'])
                     st.info(f"ℹ️ {descripcion}")
         else:
-            st.warning(f"⚠️ No encontramos productos para la categoría detectada: **{categoria_detectada}**.")
+            st.warning(f"⚠️ No encontramos productos para la categoría detectada: **{categoria_detectada.capitalize()}**.")
 
     else:
         st.warning("⚠️ No pudimos detectar tu necesidad en nuestro catálogo. Intenta ser más específico o usar palabras comunes.")
