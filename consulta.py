@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import openai
 import re
-import unicodedata
 
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -15,32 +14,6 @@ def cargar_catalogo():
     except Exception as e:
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
-
-# Función para normalizar texto (sin tildes)
-def normalizar_texto(texto):
-    texto = texto.lower()
-    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')
-    return texto
-
-# Función mejorada para extraer ingredientes directamente de la respuesta de OpenAI
-def extraer_ingredientes_de_respuesta(texto):
-    texto = normalizar_texto(texto)
-    posibles_ingredientes = re.findall(r'\b[a-záéíóúñ]+\b', texto)
-    
-    # Lista de ingredientes naturales más comunes en naturismo
-    lista_basica = [
-        "melatonina", "valeriana", "pasiflora", "curcuma", "glucosamina", "condroitina",
-        "omega", "manzanilla", "jengibre", "menta", "zinc", "vitamina", "probiotico",
-        "spirulina", "espirulina", "ginkgo", "hierba", "cuachalalate", "colageno",
-        "resveratrol", "magnesio", "carbon", "oregano", "aloe", "canela", "ajo"
-    ]
-    
-    ingredientes_detectados = []
-    for palabra in posibles_ingredientes:
-        for ingrediente in lista_basica:
-            if ingrediente in palabra and ingrediente not in ingredientes_detectados:
-                ingredientes_detectados.append(ingrediente)
-    return ingredientes_detectados
 
 # Función para consultar OpenAI sobre suplementos
 def consultar_openai_suplementos(consulta):
@@ -64,6 +37,30 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
+# Nueva función: Extraer ingredientes directamente de la respuesta de OpenAI
+def extraer_ingredientes_openai(respuesta):
+    try:
+        extraccion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            temperature=0,
+            max_tokens=100,
+            messages=[
+                {"role": "system", "content": "Extrae solo los nombres de suplementos o ingredientes naturales mencionados en el siguiente texto, separados por comas. No incluyas explicaciones, solo los nombres."},
+                {"role": "user", "content": respuesta}
+            ]
+        )
+        ingredientes_extraidos = extraccion.choices[0].message['content'].strip()
+        ingredientes_lista = [i.strip().lower() for i in ingredientes_extraidos.split(",") if i.strip()]
+        return ingredientes_lista
+    except Exception as e:
+        return []
+
+# Función auxiliar para quitar acentos
+def limpiar_texto(texto):
+    import unicodedata
+    texto = unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('utf-8')
+    return texto.lower()
+
 # Cargar catálogo
 df_productos = cargar_catalogo()
 if not df_productos.empty:
@@ -85,7 +82,8 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
+    # Ahora extraemos los ingredientes a partir de esa respuesta
+    ingredientes_detectados = extraer_ingredientes_openai(respuesta_openai)
 
     if ingredientes_detectados:
         st.markdown("🔎 Detectamos estos criterios de búsqueda:")
@@ -98,8 +96,12 @@ if consulta_usuario:
             nombre_columna_categoria = df_productos.columns[4]
 
             for ingrediente in ingredientes_detectados:
-                coincidencias_nombre = df_productos[df_productos['nombre'].apply(lambda x: ingrediente in normalizar_texto(str(x)))]
-                coincidencias_categoria = df_productos[df_productos[nombre_columna_categoria].apply(lambda x: ingrediente in normalizar_texto(str(x)))]
+                coincidencias_nombre = df_productos[
+                    df_productos['nombre'].apply(lambda x: limpiar_texto(x)).str.contains(limpiar_texto(ingrediente), na=False)
+                ]
+                coincidencias_categoria = df_productos[
+                    df_productos[nombre_columna_categoria].apply(lambda x: limpiar_texto(x)).str.contains(limpiar_texto(ingrediente), na=False)
+                ]
                 productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
             productos_relevantes = productos_relevantes.drop_duplicates()
