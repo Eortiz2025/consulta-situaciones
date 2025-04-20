@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import openai
 import re
+import unicodedata
 
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -15,18 +16,28 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para extraer posibles ingredientes de una respuesta
-def extraer_ingredientes_de_respuesta(texto):
-    posibles = [
+# Función para normalizar texto (quita acentos y convierte a minúsculas)
+def normalizar_texto(texto):
+    if not isinstance(texto, str):
+        texto = str(texto)
+    texto = unicodedata.normalize('NFKD', texto)
+    texto = ''.join(c for c in texto if not unicodedata.combining(c))
+    return texto.lower()
+
+# Función para extraer posibles ingredientes naturales desde la respuesta
+def extraer_ingredientes(texto):
+    palabras_clave = [
         "cúrcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
-        "zinc", "vitamina", "probiotico", "spirulina", "ginkgo", "pasiflora", "hierba de sapo",
-        "cuachalalate", "colágeno", "magnesio", "resveratrol", "espirulina", "melatonina", "té verde"
+        "zinc", "vitamina", "probiótico", "probiotico", "espirulina", "ginkgo", "pasiflora",
+        "hierba de sapo", "cuachalalate", "colágeno", "magnesio", "resveratrol", "melatonina",
+        "té verde", "carbon activado", "carbón activado"
     ]
+    texto_normalizado = normalizar_texto(texto)
     encontrados = []
-    texto = texto.lower()
-    for palabra in posibles:
-        if palabra in texto:
-            encontrados.append(palabra)
+    for palabra in palabras_clave:
+        palabra_normalizada = normalizar_texto(palabra)
+        if palabra_normalizada in texto_normalizado:
+            encontrados.append(palabra_normalizada)
     return list(set(encontrados))
 
 # Función para consultar OpenAI sobre suplementos
@@ -72,7 +83,8 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
+    # Buscar ingredientes naturales detectados
+    ingredientes_detectados = extraer_ingredientes(respuesta_openai)
 
     if ingredientes_detectados:
         st.markdown("🔎 Detectamos estos ingredientes relevantes:")
@@ -85,15 +97,23 @@ if consulta_usuario:
             nombre_columna_categoria = df_productos.columns[4]
 
             for ingrediente in ingredientes_detectados:
-                coincidencias_nombre = df_productos[df_productos['nombre'].str.contains(ingrediente, case=False, na=False)]
-                coincidencias_categoria = df_productos[df_productos[nombre_columna_categoria].astype(str).str.contains(ingrediente, case=False, na=False)]
+                # Buscar en nombre normalizado
+                coincidencias_nombre = df_productos[
+                    df_productos['nombre'].apply(lambda x: ingrediente in normalizar_texto(x))
+                ]
+
+                # Buscar en categoría normalizada
+                coincidencias_categoria = df_productos[
+                    df_productos[nombre_columna_categoria].apply(lambda x: ingrediente in normalizar_texto(x))
+                ]
+
                 productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
             productos_relevantes = productos_relevantes.drop_duplicates()
 
             # Filtrar para excluir ciertas categorías
             productos_filtrados = productos_relevantes[
-                ~productos_relevantes[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
+                ~df_productos[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
             ].sort_values(by='nombre')
 
             if not productos_filtrados.empty:
