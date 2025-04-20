@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import openai
 import re
-from datetime import datetime
 import unicodedata
+from datetime import datetime
 
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -47,25 +47,21 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para buscar productos por ingredientes detectados
-def buscar_productos_relacionados(df, respuesta_openai):
-    ingredientes = []
-    respuesta_normalizada = normalizar_texto(respuesta_openai)
-    palabras = set(respuesta_normalizada.split())
-
-    posibles_ingredientes = [
+# Función para extraer ingredientes detectados de respuesta
+def extraer_ingredientes_de_respuesta(texto):
+    posibles = [
         "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
         "zinc", "vitamina", "probiotico", "spirulina", "espirulina", "pasiflora", "hierba", 
         "cuachalalate", "colageno", "magnesio", "resveratrol", "melatonina", "triptófano", "luteina"
     ]
+    encontrados = []
+    texto_normalizado = normalizar_texto(texto)
+    for palabra in posibles:
+        if palabra in texto_normalizado:
+            encontrados.append(palabra)
+    return list(set(encontrados))
 
-    for ingrediente in posibles_ingredientes:
-        if ingrediente in palabras:
-            ingredientes.append(ingrediente)
-
-    return list(set(ingredientes))
-
-# Función para guardar el historial
+# Función para guardar historial en CSV
 def guardar_en_historial(consulta, ingredientes):
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     nuevo_registro = pd.DataFrame({
@@ -86,10 +82,10 @@ df_productos = cargar_catalogo()
 if not df_productos.empty:
     df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-# Categorías que no deben mostrarse
+# Categorías a excluir
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
-# Interfaz
+# Interfaz principal
 st.title("🔎 Consulta - Karolo")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
 
@@ -103,9 +99,9 @@ if consulta_usuario:
 
     st.success(f"ℹ️ {respuesta_openai}")
 
-    ingredientes_detectados = buscar_productos_relacionados(df_productos, respuesta_openai)
+    ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
-    # Guardar en historial
+    # Guardar automáticamente historial (sin mostrar nada al usuario)
     guardar_en_historial(consulta_usuario, ingredientes_detectados)
 
     if ingredientes_detectados:
