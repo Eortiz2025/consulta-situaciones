@@ -53,30 +53,6 @@ def clasificar_necesidad(texto_usuario):
             return categoria
     return None
 
-# Función para obtener descripción breve de un producto utilizando OpenAI
-def obtener_descripcion_producto(nombre_producto, categoria_producto):
-    prompt = f"""
-Eres un asesor experto en suplementos naturistas.
-
-Describe brevemente (máximo 2 líneas) el posible beneficio de un suplemento llamado "{nombre_producto}", perteneciente a la categoría de "{categoria_producto}".
-No inventes enfermedades ni tratamientos médicos específicos. No repitas el nombre completo.
-Sé claro, breve y realista basado en el contexto de suplementos naturistas.
-"""
-    try:
-        respuesta = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            temperature=0.5,
-            max_tokens=150,
-            messages=[
-                {"role": "system", "content": "Eres un asesor experto en suplementos naturistas."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        descripcion = respuesta.choices[0].message['content'].strip()
-        return descripcion
-    except Exception as e:
-        return f"❌ Error generando descripción: {e}"
-
 # Cargar catálogo
 df_productos = cargar_catalogo()
 
@@ -118,27 +94,15 @@ if consulta_necesidad:
         ]
 
         if not productos_categoria.empty:
-            st.subheader("🎯 Productos sugeridos:")
+            st.subheader("🎯 Productos disponibles:")
 
-            # Mostrar listado de productos con checkbox
+            # Mostrar listado limpio de productos
             for idx, row in productos_categoria.iterrows():
                 codigo = str(row['código'])
                 nombre = row['nombre']
                 precio = int(row['precio de venta con iva'])
 
-                col1, col2 = st.columns([0.05, 0.95])
-                with col1:
-                    seleccionado = st.checkbox("", key=f"producto_{codigo}")
-                with col2:
-                    st.write(f"🔹 **Código: {codigo}** - {nombre} - **Precio:** ${precio}")
-
-                if seleccionado:
-                    nombre_producto = row['nombre']
-                    categoria_producto = row[nombre_columna_categoria]
-
-                    descripcion = obtener_descripcion_producto(nombre_producto, categoria_producto)
-
-                    st.info(f"ℹ️ {descripcion}")
+                st.write(f"🔹 **Código:** {codigo} | **Nombre:** {nombre} | **Precio:** ${precio}")
 
         else:
             st.warning(f"⚠️ No se encontraron productos relacionados con: **{categoria_detectada.capitalize()}**.")
