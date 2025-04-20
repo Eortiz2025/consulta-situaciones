@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import openai
 
-# Configurar tu API Key de OpenAI desde secrets (opcional para futura expansión)
+# Configurar tu API Key de OpenAI desde secrets (opcional, futuro uso)
 openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
 
 # Función para cargar el catálogo naturista
@@ -14,11 +14,11 @@ def cargar_catalogo():
 # Cargar catálogo
 df_productos = cargar_catalogo()
 
-# Título de la App
+# Título principal
 st.title("🔎 Consulta - Karolo")
 
 # =========================================
-# Búsqueda tradicional por Nombre de producto
+# 🔍 Buscar Producto por Nombre
 # =========================================
 st.header("🔍 Buscar Producto por Nombre")
 
@@ -35,11 +35,11 @@ if busqueda_nombre:
         st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 
 # =========================================
-# Búsqueda por Necesidad de Salud Inteligente
+# 🩺 Buscar Productos por Necesidad de Salud (Detección Automática)
 # =========================================
-st.header("🩺 Buscar Productos por Necesidad de Salud")
+st.header("🩺 Buscar Productos por Necesidad de Salud (Describe Libremente)")
 
-consulta_necesidad = st.text_input("¿Qué necesidad tienes? (Ejemplo: circulación, próstata, diabetes, hígado, defensas, etc.)")
+consulta_necesidad = st.text_input("Describe tu necesidad o problema de salud:")
 
 if consulta_necesidad:
     necesidades = {
@@ -60,23 +60,28 @@ if consulta_necesidad:
         'menopausia': ['menopausia', 'soya', 'climaterio', 'isoflavonas'],
     }
 
-    # Detectar la necesidad buscada (permitimos entrada libre)
-    palabras_clave = []
+    # Detección automática de necesidad
+    consulta_detectada = None
+    consulta_texto = consulta_necesidad.lower()
+
     for necesidad, palabras in necesidades.items():
-        if consulta_necesidad.lower() in necesidad:
-            palabras_clave = palabras
+        for palabra in palabras:
+            if palabra in consulta_texto:
+                consulta_detectada = necesidad
+                break
+        if consulta_detectada:
             break
 
-    if not palabras_clave:
-        palabras_clave = [consulta_necesidad.lower()]  # Buscar como palabra suelta
+    if consulta_detectada:
+        palabras_clave = necesidades[consulta_detectada]
+        filtro_necesidad = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
+        resultados_necesidad = df_productos[filtro_necesidad]
 
-    # Buscar en catálogo
-    filtro_necesidad = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
-    resultados_necesidad = df_productos[filtro_necesidad]
-
-    if not resultados_necesidad.empty:
-        st.success(f"✅ Encontramos {len(resultados_necesidad)} productos que pueden ayudarte con {consulta_necesidad}:")
-        for index, row in resultados_necesidad.iterrows():
-            st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
+        if not resultados_necesidad.empty:
+            st.success(f"✅ Basado en tu necesidad relacionada con **{consulta_detectada}**, encontramos estos productos:")
+            for index, row in resultados_necesidad.iterrows():
+                st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
+        else:
+            st.warning(f"⚠️ No encontramos productos en el catálogo para '{consulta_detectada}'.")
     else:
-        st.warning("⚠️ No se encontraron productos específicos para esa necesidad en nuestro catálogo.")
+        st.warning("⚠️ No detectamos un área de consulta relacionada. Intenta describir tu necesidad de otra forma.")
