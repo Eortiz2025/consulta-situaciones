@@ -11,26 +11,27 @@ def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Función mejorada para consultar a ChatGPT una descripción
+# Función mejorada para consultar a ChatGPT una descripción basada en el nombre
 def consultar_descripcion_chatgpt(nombre, ean):
     prompt = f"""
-Eres un experto en suplementos naturistas. Explica brevemente, en máximo 400 caracteres, qué es y para qué sirve el siguiente producto:
+Eres un experto en suplementos naturistas.
 
-Nombre: {nombre}
-Código EAN: {ean}
+Basándote únicamente en el nombre del producto "{nombre}", explica en máximo 400 caracteres qué beneficios o propiedades naturales podría tener.
 
-Si no encuentras información exacta, da una respuesta general sobre las propiedades típicas de productos similares.
+No necesitas buscar información específica de la marca ni del código EAN {ean}. Solo usa tu conocimiento general sobre suplementos naturistas.
+
+Escribe de forma breve, clara, positiva y enfocada a beneficios de salud.
 """
 
     try:
         respuesta = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Eres un asistente especializado en productos naturistas."},
+                {"role": "system", "content": "Eres un asistente experto en productos naturistas y suplementos."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=200,
-            temperature=0.4
+            temperature=0.5
         )
 
         texto = respuesta.choices[0].message['content'].strip()
@@ -42,7 +43,7 @@ Si no encuentras información exacta, da una respuesta general sobre las propied
 df_productos = cargar_catalogo()
 
 # Título principal
-st.title("🔎 Consulta de Productos - Naturista (Con Descripción Inteligente Mejorada)")
+st.title("🔎 Consulta de Productos - Naturista (Descripción Inteligente Mejorada)")
 
 # Tipo de búsqueda
 tipo_busqueda = st.selectbox(
