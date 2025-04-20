@@ -7,7 +7,7 @@ import unicodedata
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Función para cargar el catálogo
+# Función para cargar el catálogo naturista
 @st.cache_data
 def cargar_catalogo():
     try:
@@ -16,12 +16,31 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para normalizar texto (quitar acentos y minúsculas)
-def normalizar(texto):
-    if not isinstance(texto, str):
-        return ""
-    texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8').lower()
+# Función para normalizar texto (sin tildes)
+def normalizar_texto(texto):
+    texto = texto.lower()
+    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')
     return texto
+
+# Función mejorada para extraer ingredientes directamente de la respuesta de OpenAI
+def extraer_ingredientes_de_respuesta(texto):
+    texto = normalizar_texto(texto)
+    posibles_ingredientes = re.findall(r'\b[a-záéíóúñ]+\b', texto)
+    
+    # Lista de ingredientes naturales más comunes en naturismo
+    lista_basica = [
+        "melatonina", "valeriana", "pasiflora", "curcuma", "glucosamina", "condroitina",
+        "omega", "manzanilla", "jengibre", "menta", "zinc", "vitamina", "probiotico",
+        "spirulina", "espirulina", "ginkgo", "hierba", "cuachalalate", "colageno",
+        "resveratrol", "magnesio", "carbon", "oregano", "aloe", "canela", "ajo"
+    ]
+    
+    ingredientes_detectados = []
+    for palabra in posibles_ingredientes:
+        for ingrediente in lista_basica:
+            if ingrediente in palabra and ingrediente not in ingredientes_detectados:
+                ingredientes_detectados.append(ingrediente)
+    return ingredientes_detectados
 
 # Función para consultar OpenAI sobre suplementos
 def consultar_openai_suplementos(consulta):
@@ -45,28 +64,12 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para extraer ingredientes y presentaciones
-
-def extraer_ingredientes_y_presentaciones(texto):
-    texto = normalizar(texto)
-    ingredientes_comunes = [
-        "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
-        "zinc", "vitamina", "probiotico", "espirulina", "melatonina", "colageno",
-        "resveratrol", "hierba de sapo", "cuachalalate", "ginkgo", "te verde", "carbon activado"
-    ]
-    presentaciones_comunes = ["gotas", "colirio", "ojos", "vision", "ocular"]
-
-    ingredientes_detectados = [i for i in ingredientes_comunes if i in texto]
-    presentaciones_detectadas = [p for p in presentaciones_comunes if p in texto]
-    
-    return ingredientes_detectados, presentaciones_detectadas
-
 # Cargar catálogo
-catalogo = cargar_catalogo()
-if not catalogo.empty:
-    catalogo.columns = catalogo.columns.str.strip().str.lower()
+df_productos = cargar_catalogo()
+if not df_productos.empty:
+    df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-nombre_columna_categoria = catalogo.columns[4]
+# Categorías que no deben mostrarse
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
 # Interfaz
@@ -82,27 +85,28 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    ingredientes, presentaciones = extraer_ingredientes_y_presentaciones(respuesta_openai + " " + consulta_usuario)
+    ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
-    if ingredientes or presentaciones:
-        st.markdown("\n🔎 Detectamos estos criterios de búsqueda:")
-        st.write(", ".join(ingredientes + presentaciones))
+    if ingredientes_detectados:
+        st.markdown("🔎 Detectamos estos criterios de búsqueda:")
+        st.write(", ".join(ingredientes_detectados))
 
-        buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados?")
+        buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
 
         if buscar_productos:
             productos_relevantes = pd.DataFrame()
-            nombre_columna_categoria = catalogo.columns[4]
+            nombre_columna_categoria = df_productos.columns[4]
 
-            for keyword in ingredientes + presentaciones:
-                coincidencias_nombre = catalogo[catalogo['nombre'].apply(normalizar).str.contains(keyword, na=False)]
-                coincidencias_categoria = catalogo[catalogo[nombre_columna_categoria].apply(normalizar).str.contains(keyword, na=False)]
+            for ingrediente in ingredientes_detectados:
+                coincidencias_nombre = df_productos[df_productos['nombre'].apply(lambda x: ingrediente in normalizar_texto(str(x)))]
+                coincidencias_categoria = df_productos[df_productos[nombre_columna_categoria].apply(lambda x: ingrediente in normalizar_texto(str(x)))]
                 productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
             productos_relevantes = productos_relevantes.drop_duplicates()
 
+            # Filtrar para excluir ciertas categorías
             productos_filtrados = productos_relevantes[
-                ~catalogo[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
+                ~df_productos[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
             ].sort_values(by='nombre')
 
             if not productos_filtrados.empty:
@@ -118,4 +122,4 @@ if consulta_usuario:
             else:
                 st.warning("⚠️ No se encontraron productos relevantes en catálogo.")
     else:
-        st.warning("⚠️ No detectamos criterios claros para buscar productos relacionados.")
+        st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
