@@ -120,28 +120,19 @@ if consulta_necesidad:
         if not productos_categoria.empty:
             st.subheader("🎯 Productos sugeridos:")
 
-            # Crear lista de opciones
-            opciones = [
-                f"{str(row['código'])} - {row['nombre']}"
-                for idx, row in productos_categoria.iterrows()
-            ]
-            
-            seleccionado = st.radio(
-                "Seleccione un producto para ver más detalles:",
-                opciones,
-                index=None
-            )
-
-            # Mostrar productos
+            # Mostrar listado de productos con checkbox
             for idx, row in productos_categoria.iterrows():
                 codigo = str(row['código'])
                 nombre = row['nombre']
                 precio = int(row['precio de venta con iva'])
 
-                st.write(f"🔹 **Código: {codigo}** - {nombre} - **Precio:** ${precio}")
+                col1, col2 = st.columns([0.05, 0.95])
+                with col1:
+                    seleccionado = st.checkbox("", key=f"producto_{codigo}")
+                with col2:
+                    st.write(f"🔹 **Código: {codigo}** - {nombre} - **Precio:** ${precio}")
 
-                # Mostrar descripción debajo del producto seleccionado
-                if seleccionado and seleccionado.startswith(codigo):
+                if seleccionado:
                     nombre_producto = row['nombre']
                     categoria_producto = row[nombre_columna_categoria]
 
