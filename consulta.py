@@ -27,7 +27,7 @@ def extraer_ingredientes_de_respuesta(texto):
     for palabra in posibles:
         if palabra in texto:
             encontrados.append(palabra)
-    return list(set(encontrados))  # Elimina duplicados
+    return list(set(encontrados))
 
 # Función para consultar OpenAI sobre suplementos
 def consultar_openai_suplementos(consulta):
@@ -56,6 +56,9 @@ df_productos = cargar_catalogo()
 if not df_productos.empty:
     df_productos.columns = df_productos.columns.str.strip().str.lower()
 
+# Categorías que no deben mostrarse
+categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
+
 # Interfaz
 st.title("🔎 Consulta - Karolo")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
@@ -65,12 +68,10 @@ consulta_usuario = st.text_input("✍️ Escribe tu necesidad o pregunta:")
 if consulta_usuario:
     st.info("🔎 Procesando tu consulta...")
 
-    # Siempre mandar a OpenAI sin filtro
     with st.spinner("Consultando asesor experto..."):
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    # Buscar ingredientes mencionados en la respuesta
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
     if ingredientes_detectados:
@@ -88,11 +89,16 @@ if consulta_usuario:
                 coincidencias_categoria = df_productos[df_productos[nombre_columna_categoria].astype(str).str.contains(ingrediente, case=False, na=False)]
                 productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
-            productos_relevantes = productos_relevantes.drop_duplicates().sort_values(by='nombre')
+            productos_relevantes = productos_relevantes.drop_duplicates()
 
-            if not productos_relevantes.empty:
+            # Filtrar para excluir ciertas categorías
+            productos_filtrados = productos_relevantes[
+                ~productos_relevantes[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
+            ].sort_values(by='nombre')
+
+            if not productos_filtrados.empty:
                 st.subheader("🎯 Productos sugeridos:")
-                for idx, row in productos_relevantes.iterrows():
+                for idx, row in productos_filtrados.iterrows():
                     try:
                         codigo = str(row.iloc[0])
                         nombre = row['nombre']
@@ -101,6 +107,6 @@ if consulta_usuario:
                     except:
                         continue
             else:
-                st.warning("⚠️ No se encontraron productos relacionados en catálogo.")
+                st.warning("⚠️ No se encontraron productos relevantes en catálogo.")
     else:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
