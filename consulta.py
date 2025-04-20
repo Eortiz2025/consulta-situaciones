@@ -45,7 +45,7 @@ mapa_categorias = {
     "concentración": "funcion cerebral",
 }
 
-# Función para clasificar automáticamente la necesidad del usuario
+# Función para clasificar automáticamente la necesidad
 def clasificar_necesidad(texto_usuario):
     texto_usuario = texto_usuario.lower()
     for palabra, categoria in mapa_categorias.items():
@@ -53,7 +53,7 @@ def clasificar_necesidad(texto_usuario):
             return categoria
     return None
 
-# Función para obtener una breve descripción de un producto utilizando OpenAI
+# Función para obtener descripción breve de un producto utilizando OpenAI
 def obtener_descripcion_producto(nombre_producto, categoria_producto):
     prompt = f"""
 Eres un asesor experto en suplementos naturistas.
@@ -77,16 +77,16 @@ Sé claro, breve y realista basado en el contexto de suplementos naturistas.
     except Exception as e:
         return f"❌ Error generando descripción: {e}"
 
-# Cargar el catálogo
+# Cargar catálogo
 df_productos = cargar_catalogo()
 
-# Normalización de nombres de columnas
+# Normalizar nombres de columnas
 df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-# Identificación de la quinta columna como categoría
+# Detectar nombre de la columna categoría
 nombre_columna_categoria = df_productos.columns[4]
 
-# Configuración de la aplicación en Streamlit
+# Configuración de la aplicación
 st.title("🔎 Consulta - Karolo")
 
 st.header("👋 Bienvenido. ¿En qué puedo asistirle hoy?")
@@ -98,14 +98,10 @@ st.markdown(
     - Quiero algo para la circulación
     - ¿Qué recomiendas para fortalecer defensas?
     - ¿Tienes algo para la diabetes?
-    - Me siento cansado, ¿qué puedo tomar?
-    - Necesito gotas para los ojos
-
-    Estoy a su disposición para asistirlo. 🌟
     """
 )
 
-# Entrada de consulta del usuario
+# Entrada de necesidad del usuario
 consulta_necesidad = st.text_input("Escriba su necesidad:")
 
 if consulta_necesidad:
@@ -116,7 +112,7 @@ if consulta_necesidad:
     if categoria_detectada:
         st.success(f"✅ Necesidad detectada: **{categoria_detectada.capitalize()}**")
 
-        # Filtrar productos por categoría detectada
+        # Filtrar productos de esa categoría
         productos_categoria = df_productos[
             df_productos[nombre_columna_categoria].astype(str).str.lower() == categoria_detectada.lower()
         ]
@@ -124,32 +120,34 @@ if consulta_necesidad:
         if not productos_categoria.empty:
             st.subheader("🎯 Productos sugeridos:")
 
+            # Crear lista de opciones
             opciones = [
                 f"{str(row['código'])} - {row['nombre']}"
                 for idx, row in productos_categoria.iterrows()
             ]
             
             seleccionado = st.radio(
-                "Seleccione un producto para consultar detalles:",
+                "Seleccione un producto para ver más detalles:",
                 opciones,
                 index=None
             )
 
-            if seleccionado:
-                codigo_seleccionado = seleccionado.split(" - ")[0]
+            # Mostrar productos
+            for idx, row in productos_categoria.iterrows():
+                codigo = str(row['código'])
+                nombre = row['nombre']
+                precio = int(row['precio de venta con iva'])
 
-                # Asegurar que la comparación sea entre strings
-                producto_seleccionado = productos_categoria[
-                    productos_categoria['código'].astype(str) == codigo_seleccionado
-                ].iloc[0]
+                st.write(f"🔹 **Código: {codigo}** - {nombre} - **Precio:** ${precio}")
 
-                # Obtener nombre y categoría del producto seleccionado
-                nombre_producto = producto_seleccionado['nombre']
-                categoria_producto = producto_seleccionado[nombre_columna_categoria]
+                # Mostrar descripción debajo del producto seleccionado
+                if seleccionado and seleccionado.startswith(codigo):
+                    nombre_producto = row['nombre']
+                    categoria_producto = row[nombre_columna_categoria]
 
-                descripcion = obtener_descripcion_producto(nombre_producto, categoria_producto)
+                    descripcion = obtener_descripcion_producto(nombre_producto, categoria_producto)
 
-                st.info(f"🔹 **{nombre_producto}**\n\nℹ️ {descripcion}")
+                    st.info(f"ℹ️ {descripcion}")
 
         else:
             st.warning(f"⚠️ No se encontraron productos relacionados con: **{categoria_detectada.capitalize()}**.")
