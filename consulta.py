@@ -82,8 +82,8 @@ df_productos = cargar_catalogo()
 # Limpiar nombres de columnas
 df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-# Detectar automáticamente la columna de categoría (4ta columna)
-nombre_columna_categoria = df_productos.columns[3]  # 0,1,2,3 --> cuarta columna
+# Detectar automáticamente la columna de categoría (5ta columna)
+nombre_columna_categoria = df_productos.columns[4]  # 0,1,2,3,4 --> quinta columna
 
 # Título principal
 st.title("🔎 Consulta - Karolo")
@@ -116,8 +116,10 @@ if consulta_necesidad:
     if categoria_detectada:
         st.success(f"✅ Detectamos que buscas productos relacionados con: **{categoria_detectada.capitalize()}**")
 
-        # Buscar productos de esa categoría usando la cuarta columna
-        productos_categoria = df_productos[df_productos[nombre_columna_categoria].str.lower() == categoria_detectada.lower()]
+        # Buscar productos de esa categoría usando la quinta columna
+        productos_categoria = df_productos[
+            df_productos[nombre_columna_categoria].astype(str).str.lower() == categoria_detectada.lower()
+        ]
 
         if not productos_categoria.empty:
             st.subheader("🎯 Productos sugeridos:")
