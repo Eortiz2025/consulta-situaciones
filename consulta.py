@@ -1,11 +1,22 @@
 import streamlit as st
 import pandas as pd
+import wikipediaapi
 
-# Cargar catálogo de productos desde un archivo Excel
+# Cargar catálogo
 @st.cache_data
 def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
+
+# Función para buscar en Wikipedia
+def buscar_en_wikipedia(producto):
+    wiki_wiki = wikipediaapi.Wikipedia('es')  # idioma español
+    page = wiki_wiki.page(producto)
+
+    if page.exists():
+        return page.summary[:500]  # Resumen de máximo 500 caracteres
+    else:
+        return "No se encontró información disponible en Wikipedia."
 
 df_productos = cargar_catalogo()
 
@@ -31,8 +42,8 @@ if tipo_busqueda == "Por Nombre":
             # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"prod_{index}"):
-                    # Mostrar información breve simulada
-                    st.info(f"ℹ️ Información breve sobre **{row['Nombre']}**: Producto naturista de alta calidad, recomendado para el bienestar general.")
+                    descripcion = buscar_en_wikipedia(row['Nombre'])
+                    st.info(f"ℹ️ **{row['Nombre']}**: {descripcion}")
         else:
             st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 
@@ -50,7 +61,7 @@ elif tipo_busqueda == "Por Serie":
             # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"serie_{index}"):
-                    # Mostrar información breve simulada
-                    st.info(f"ℹ️ Información breve sobre **{row['Nombre']}**: Producto naturista de alta calidad, recomendado para el bienestar general.")
+                    descripcion = buscar_en_wikipedia(row['Nombre'])
+                    st.info(f"ℹ️ **{row['Nombre']}**: {descripcion}")
         else:
             st.warning("⚠️ No se encontraron productos en esta serie.")
