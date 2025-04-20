@@ -84,11 +84,11 @@ def consultar_openai_beneficio(ingrediente):
 # Función para consultar OpenAI sobre malestar o síntoma
 def consultar_openai_malestar(pregunta_usuario):
     mensaje_usuario = f"""
-Eres un asesor experto en suplementos naturistas. 
+Eres un asesor experto en suplementos naturistas.
 
-Un usuario te pregunta: '{pregunta_usuario}'. 
-Sugiere de forma breve y responsable suplementos naturistas que podrían apoyar esa situación. 
-Nunca hagas diagnóstico médico. Siempre sugiere consultar un profesional de la salud si el síntoma persiste.
+Un usuario te pregunta: '{pregunta_usuario}'.
+Sugiere de forma breve y responsable suplementos naturistas que podrían apoyar esa situación.
+Nunca hagas diagnóstico médico. Siempre sugiere consultar a un profesional de la salud si el síntoma persiste.
 """
     try:
         respuesta = openai.ChatCompletion.create(
@@ -111,6 +111,16 @@ def clasificar_necesidad(texto_usuario):
         if palabra in texto_usuario:
             return categoria
     return None
+
+# Función para buscar productos relacionados al texto
+def buscar_productos_relacionados(df, texto_usuario):
+    palabras_clave = re.findall(r'\b[a-záéíóúñ]+\b', texto_usuario.lower())
+    resultados = pd.DataFrame()
+    for palabra in palabras_clave:
+        coincidencias = df[df['nombre'].str.contains(palabra, case=False, na=False)]
+        resultados = pd.concat([resultados, coincidencias])
+    resultados = resultados.drop_duplicates()
+    return resultados
 
 # Cargar catálogo
 df_productos = cargar_catalogo()
@@ -180,3 +190,16 @@ if consulta_necesidad:
         with st.spinner("Consultando experto naturista..."):
             respuesta = consultar_openai_malestar(consulta_necesidad)
         st.info(f"ℹ️ {respuesta}")
+
+        buscar_productos = st.checkbox("🔎 ¿Quieres ver si tenemos productos para esto?")
+        if buscar_productos and not df_productos.empty:
+            resultados = buscar_productos_relacionados(df_productos, consulta_necesidad)
+            if not resultados.empty:
+                st.subheader("🎯 Productos relacionados encontrados:")
+                for idx, row in resultados.iterrows():
+                    codigo = str(row['código'])
+                    nombre = row['nombre']
+                    precio = float(row['precio de venta con iva'])
+                    st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+            else:
+                st.warning("⚠️ No se encontraron productos relacionados en el catálogo.")
