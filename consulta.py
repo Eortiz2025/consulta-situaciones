@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import openai
 
-# Configurar tu API Key de OpenAI
+# Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Función para cargar el catálogo naturista
@@ -10,7 +10,7 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 def cargar_catalogo():
     return pd.read_excel('naturista.xlsx')
 
-# Tabla interna: palabras clave asociadas a categorías reales del catálogo
+# Mapeo interno: palabras clave asociadas a categorías reales
 mapa_categorias = {
     "visión": "ojos",
     "vista": "ojos",
@@ -45,7 +45,7 @@ mapa_categorias = {
     "concentración": "funcion cerebral",
 }
 
-# Función para clasificar automáticamente la necesidad
+# Función para clasificar automáticamente la necesidad del usuario
 def clasificar_necesidad(texto_usuario):
     texto_usuario = texto_usuario.lower()
     for palabra, categoria in mapa_categorias.items():
@@ -53,7 +53,7 @@ def clasificar_necesidad(texto_usuario):
             return categoria
     return None
 
-# Función para obtener una breve descripción de un producto
+# Función para generar una breve descripción de un producto utilizando OpenAI
 def obtener_descripcion_producto(nombre_producto):
     prompt = f"""
 Eres un asesor experto en suplementos naturistas.
@@ -76,25 +76,23 @@ No repitas el nombre ni inventes efectos médicos exagerados.
     except Exception as e:
         return f"❌ Error: {e}"
 
-# Cargar catálogo
+# Cargar el catálogo
 df_productos = cargar_catalogo()
 
-# Limpiar nombres de columnas
+# Normalización de nombres de columnas
 df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-# Detectar automáticamente la columna de categoría (5ta columna)
-nombre_columna_categoria = df_productos.columns[4]  # índice 4 = quinta columna
+# Identificación de la quinta columna como categoría
+nombre_columna_categoria = df_productos.columns[4]
 
-# Título principal
+# Configuración de la aplicación en Streamlit
 st.title("🔎 Consulta - Karolo")
 
-# Saludo inicial
-st.header("👋 Hola, ¿en qué puedo ayudarte hoy?")
+st.header("👋 Bienvenido. ¿En qué puedo asistirle hoy?")
 
-# Mensaje de orientación para el usuario
 st.markdown(
     """
-    🧠 Puedes preguntarme libremente:
+    Puede realizar consultas como:
 
     - Quiero algo para la circulación
     - ¿Qué recomiendas para fortalecer defensas?
@@ -102,22 +100,22 @@ st.markdown(
     - Me siento cansado, ¿qué puedo tomar?
     - Necesito gotas para los ojos
 
-    ¡Estoy aquí para ayudarte! 🌟
+    Estoy a su disposición para asistirlo. 🌟
     """
 )
 
-# Entrada del usuario
-consulta_necesidad = st.text_input("Escribe tu necesidad:")
+# Entrada de consulta del usuario
+consulta_necesidad = st.text_input("Escriba su necesidad:")
 
 if consulta_necesidad:
-    st.info("🔎 Analizando tu necesidad...")
+    st.info("🔎 Analizando su consulta...")
 
     categoria_detectada = clasificar_necesidad(consulta_necesidad)
 
     if categoria_detectada:
-        st.success(f"✅ Detectamos que buscas productos relacionados con: **{categoria_detectada.capitalize()}**")
+        st.success(f"✅ Necesidad detectada: **{categoria_detectada.capitalize()}**")
 
-        # Buscar productos de esa categoría usando la quinta columna
+        # Filtrar productos por categoría detectada
         productos_categoria = df_productos[
             df_productos[nombre_columna_categoria].astype(str).str.lower() == categoria_detectada.lower()
         ]
@@ -125,25 +123,30 @@ if consulta_necesidad:
         if not productos_categoria.empty:
             st.subheader("🎯 Productos sugeridos:")
 
-            # Crear lista de opciones para selección única
-            opciones = [f"{row['código']} - {row['nombre']}" for idx, row in productos_categoria.iterrows()]
+            opciones = [
+                f"{str(row['código'])} - {row['nombre']}"
+                for idx, row in productos_categoria.iterrows()
+            ]
             
             seleccionado = st.radio(
-                "Selecciona un producto para ver detalles:",
+                "Seleccione un producto para consultar detalles:",
                 opciones,
                 index=None
             )
 
             if seleccionado:
-                # Extraer el código del producto seleccionado
                 codigo_seleccionado = seleccionado.split(" - ")[0]
-                producto_seleccionado = productos_categoria[productos_categoria['código'] == codigo_seleccionado].iloc[0]
-                
+
+                # Asegurar que la comparación sea entre strings
+                producto_seleccionado = productos_categoria[
+                    productos_categoria['código'].astype(str) == codigo_seleccionado
+                ].iloc[0]
+
                 descripcion = obtener_descripcion_producto(producto_seleccionado['nombre'])
-                
+
                 st.info(f"🔹 **{producto_seleccionado['nombre']}**\n\nℹ️ {descripcion}")
         else:
-            st.warning(f"⚠️ No encontramos productos para la categoría detectada: **{categoria_detectada.capitalize()}**.")
+            st.warning(f"⚠️ No se encontraron productos relacionados con: **{categoria_detectada.capitalize()}**.")
 
     else:
-        st.warning("⚠️ No pudimos detectar tu necesidad en nuestro catálogo. Intenta ser más específico o usar palabras comunes.")
+        st.warning("⚠️ No fue posible detectar su necesidad. Intente ser más específico o utilice términos comunes.")
