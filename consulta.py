@@ -1,45 +1,18 @@
 import streamlit as st
 import pandas as pd
 
-# Cargar catálogo de productos desde un archivo Excel
+# Cargar catálogo
 @st.cache_data
 def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
+# Cargar datos
 df_productos = cargar_catalogo()
 
-# Título principal
-st.title("🔎 Consulta de Productos - Naturista")
+# MOSTRAR las columnas que realmente encontró
+st.title("Diagnóstico de Columnas del Archivo 📋")
+st.write("Columnas encontradas en naturista.xlsx:", df_productos.columns.tolist())
 
-# Pregunta inicial: ¿Qué tipo de producto estás buscando?
-st.subheader("¿Qué tipo de producto estás buscando?")
-
-# Obtener las opciones únicas de 'Serie de producto'
-series_disponibles = df_productos['Serie de producto'].dropna().unique()
-serie_seleccionada = st.selectbox("Selecciona una serie de producto:", options=sorted(series_disponibles))
-
-# Campo de búsqueda adicional
-busqueda = st.text_input("Escribe el nombre o parte del nombre del producto:")
-
-# Resultado de búsqueda
-if serie_seleccionada:
-    # Filtrar primero por serie
-    filtro_serie = df_productos[df_productos['Serie de producto'] == serie_seleccionada]
-
-    if busqueda:
-        # Luego filtrar por nombre
-        resultados = filtro_serie[filtro_serie['Nombre'].str.contains(busqueda, case=False, na=False)]
-    else:
-        resultados = filtro_serie
-
-    if not resultados.empty:
-        # Preparar los resultados para mostrar
-        resultados_mostrar = resultados[['Código', 'Nombre', 'Serie de producto', 'Precio de venta con IVA']].copy()
-        resultados_mostrar['Precio de venta con IVA'] = resultados_mostrar['Precio de venta con IVA'].astype(int)
-        resultados_mostrar = resultados_mostrar.rename(columns={'Precio de venta con IVA': 'Precio'})
-
-        st.success(f"✅ Se encontraron {len(resultados_mostrar)} productos:")
-        st.dataframe(resultados_mostrar)
-    else:
-        st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda en esta serie.")
+# Detener la app aquí
+st.stop()
