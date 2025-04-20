@@ -52,20 +52,21 @@ mapa_categorias = {
 
 # Función para detectar si es una pregunta sobre beneficios
 def detectar_consulta_beneficio(texto):
-    patrones = ["para qué sirve", "beneficio", "beneficios", "ayuda", "utilidad"]
+    patrones = ["para qué sirve", "beneficio", "beneficios", "ayuda", "utilidad",
+                "para que sirve", "para que es bueno", "para qué es bueno", "qué beneficios", "qué hace"]
     texto = texto.lower()
     return any(patron in texto for patron in patrones)
 
 # Función para extraer posible ingrediente
 def extraer_ingrediente(texto):
     palabras = re.findall(r'\b[a-záéíóúñ]+\b', texto.lower())
-    exclusiones = {"para", "qué", "sirve", "beneficio", "beneficios", "ayuda", "utilidad", "es", "el", "la", "los", "las", "un", "una", "de", "del", "en", "con", "y"}
+    exclusiones = {"para", "qué", "sirve", "beneficio", "beneficios", "ayuda", "utilidad", "es", "el", "la", "los", "las", "un", "una", "de", "del", "en", "con", "y", "bueno", "hace"}
     ingredientes = [palabra for palabra in palabras if palabra not in exclusiones]
     return ingredientes[0] if ingredientes else ""
 
-# Función para consultar OpenAI sobre beneficios
+# Función para consultar OpenAI sobre beneficio de un ingrediente
 def consultar_openai_beneficio(ingrediente):
-    mensaje_usuario = f"Para qué sirve el suplemento naturista {ingrediente}."
+    mensaje_usuario = f"¿Para qué sirve el suplemento naturista {ingrediente}?"
     try:
         respuesta = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -80,7 +81,30 @@ def consultar_openai_beneficio(ingrediente):
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para clasificar necesidad
+# Función para consultar OpenAI sobre malestar o síntoma
+def consultar_openai_malestar(pregunta_usuario):
+    mensaje_usuario = f"""
+Eres un asesor experto en suplementos naturistas. 
+
+Un usuario te pregunta: '{pregunta_usuario}'. 
+Sugiere de forma breve y responsable suplementos naturistas que podrían apoyar esa situación. 
+Nunca hagas diagnóstico médico. Siempre sugiere consultar un profesional de la salud si el síntoma persiste.
+"""
+    try:
+        respuesta = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            temperature=0.5,
+            max_tokens=200,
+            messages=[
+                {"role": "system", "content": "Eres un asesor experto en suplementos naturistas."},
+                {"role": "user", "content": mensaje_usuario}
+            ]
+        )
+        return respuesta.choices[0].message['content'].strip()
+    except Exception as e:
+        return f"❌ Error consultando OpenAI: {e}"
+
+# Función para clasificar necesidad (por categoría)
 def clasificar_necesidad(texto_usuario):
     texto_usuario = texto_usuario.lower()
     for palabra, categoria in mapa_categorias.items():
@@ -104,39 +128,55 @@ Puedes preguntarme:
 - Quiero algo para la circulación
 - ¿Qué recomiendas para fortalecer defensas?
 - ¿Tienes algo para la diabetes?
+- ¿Para qué sirve el zinc?
+- Tengo dolor de cabeza
+- Tengo diarrea
+- Tengo cólico
 """)
 
-consulta_necesidad = st.text_input("Escribe tu necesidad o pregunta:")
+# Selección del tipo de consulta
+tipo_consulta = st.radio(
+    "Selecciona el tipo de consulta:",
+    ("Consulta por producto o beneficio", "Consulta por síntoma o malestar")
+)
+
+consulta_necesidad = st.text_input("✍️ Escribe tu necesidad o pregunta:")
 
 if consulta_necesidad:
     st.info("🔎 Analizando tu consulta...")
 
-    if detectar_consulta_beneficio(consulta_necesidad):
-        ingrediente = extraer_ingrediente(consulta_necesidad)
-        if ingrediente:
-            st.success(f"✅ Consulta detectada sobre ingrediente: **{ingrediente.capitalize()}**")
-            with st.spinner("Consultando experto..."):
-                descripcion = consultar_openai_beneficio(ingrediente)
-            st.info(f"ℹ️ {descripcion}")
-        else:
-            st.warning("⚠️ No se pudo identificar claramente el ingrediente.")
-
-    else:
-        categoria_detectada = clasificar_necesidad(consulta_necesidad)
-        if categoria_detectada and not df_productos.empty:
-            st.success(f"✅ Necesidad detectada: **{categoria_detectada.capitalize()}**")
-            productos_categoria = df_productos[
-                df_productos[nombre_columna_categoria].astype(str).str.lower() == categoria_detectada.lower()
-            ]
-
-            if not productos_categoria.empty:
-                st.subheader("🎯 Productos disponibles:")
-                for idx, row in productos_categoria.iterrows():
-                    codigo = str(row['código'])
-                    nombre = row['nombre']
-                    precio = float(row['precio de venta con iva'])
-                    st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+    if tipo_consulta == "Consulta por producto o beneficio":
+        if detectar_consulta_beneficio(consulta_necesidad):
+            ingrediente = extraer_ingrediente(consulta_necesidad)
+            if ingrediente:
+                st.success(f"✅ Consulta detectada sobre ingrediente: **{ingrediente.capitalize()}**")
+                with st.spinner("Consultando experto..."):
+                    descripcion = consultar_openai_beneficio(ingrediente)
+                st.info(f"ℹ️ {descripcion}")
             else:
-                st.warning(f"⚠️ No se encontraron productos para: **{categoria_detectada.capitalize()}**.")
+                st.warning("⚠️ No se pudo identificar claramente el ingrediente.")
         else:
-            st.warning("⚠️ No pudimos interpretar tu solicitud o no hay datos disponibles.")
+            categoria_detectada = clasificar_necesidad(consulta_necesidad)
+            if categoria_detectada and not df_productos.empty:
+                st.success(f"✅ Necesidad detectada: **{categoria_detectada.capitalize()}**")
+                productos_categoria = df_productos[
+                    df_productos[nombre_columna_categoria].astype(str).str.lower() == categoria_detectada.lower()
+                ]
+
+                if not productos_categoria.empty:
+                    st.subheader("🎯 Productos disponibles:")
+                    for idx, row in productos_categoria.iterrows():
+                        codigo = str(row['código'])
+                        nombre = row['nombre']
+                        precio = float(row['precio de venta con iva'])
+                        st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+                else:
+                    st.warning(f"⚠️ No se encontraron productos para: **{categoria_detectada.capitalize()}**.")
+            else:
+                st.warning("⚠️ No pudimos interpretar tu solicitud o no hay datos disponibles.")
+    else:
+        # Consulta por síntoma o malestar
+        st.success("✅ Consulta tipo síntoma detectada.")
+        with st.spinner("Consultando experto naturista..."):
+            respuesta = consultar_openai_malestar(consulta_necesidad)
+        st.info(f"ℹ️ {respuesta}")
