@@ -24,26 +24,34 @@ def limpiar_acentos(texto):
         return ""
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').lower()
 
-# Función mejorada para extraer ingredientes de respuesta
-def extraer_ingredientes_de_respuesta(texto):
-    posibles_ingredientes = [
-        "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima", "espirulina", "spirulina",
-        "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate", "probiótico", "probiotico",
-        "vitamina", "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
-        "carbon activado", "semilla de calabaza", "saw palmetto", "ortiga"
-    ]
-    texto_limpio = limpiar_acentos(texto.lower())
-    palabras_texto = re.findall(r'\b\w+\b', texto_limpio)
+# Lista extensa de ingredientes naturistas
+posibles_ingredientes = [
+    "cúrcuma", "glucosamina", "condroitina", "omega", "omega 3", "omega 6", "omega 9", "maca", "ginseng",
+    "rhodiola", "coenzima", "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo",
+    "cuachalalate", "probiótico", "probiotico", "vitamina", "vitamina c", "vitamina d", "vitamina e", "vitamina a",
+    "vitamina b12", "zinc", "magnesio", "calcio", "hierro", "selenio", "diente de león", "eufrasia", "colágeno",
+    "ácido hialurónico", "té verde", "té de manzanilla", "té de menta", "té de tila", "manzanilla", "menta",
+    "cardo mariano", "saw palmetto", "semilla de calabaza", "ortiga", "árnica", "jengibre", "cáscara sagrada",
+    "fenogreco", "aloe vera", "chlorella", "ashwagandha", "melena de león", "resveratrol", "bacopa monnieri",
+    "garcinia cambogia", "té rojo", "té blanco", "té negro", "matcha", "triptófano", "5-htp", "l-teanina",
+    "curcumina", "ácido alfa lipoico", "extracto de semilla de uva", "pqq", "semilla de lino", "cebada verde",
+    "alfalfa", "raíz de regaliz", "shatavari", "tribulus", "moringa", "echinacea", "guaraná", "camu camu",
+    "lúcuma", "spirulina azul", "pepita de calabaza", "romero", "ajo negro", "ajo", "clorofila", "guggul",
+    "astaxantina", "pterostilbeno", "berberina", "boswellia", "bacopa", "ginkgo biloba", "espino blanco",
+    "extracto de hoja de olivo", "extracto de arándano", "extracto de granada", "extracto de romero",
+    "extracto de jengibre", "extracto de canela", "extracto de pimienta negra"
+]
 
+# Función para extraer posibles ingredientes dinámicamente
+def extraer_ingredientes_de_respuesta(texto):
     encontrados = []
+    texto_limpio = limpiar_acentos(texto)
     for ingrediente in posibles_ingredientes:
-        ingrediente_limpio = limpiar_acentos(ingrediente.lower())
-        if ingrediente_limpio in palabras_texto:
+        if limpiar_acentos(ingrediente) in texto_limpio:
             encontrados.append(ingrediente)
     return list(set(encontrados))
 
 # Función para consultar OpenAI
-
 def consultar_openai_suplementos(consulta):
     try:
         respuesta = openai.ChatCompletion.create(
@@ -51,13 +59,13 @@ def consultar_openai_suplementos(consulta):
             temperature=0.5,
             max_tokens=300,
             messages=[
-                {"role": "system", "content": """Eres un asesor experto en suplementos naturistas.
+                {"role": "system", "content": """
+Eres un asesor experto en suplementos naturistas.
 Tu tarea es recomendar suplementos o ingredientes naturales que puedan ayudar a aliviar o apoyar de forma complementaria el malestar, síntoma o condición que te describa el usuario.
 Siempre responde mencionando directamente suplementos naturistas o ingredientes activos.
-Entiende los regionalismos mexicanos.
+Entiende regionalismos mexicanos (ej. 'chorro' = diarrea).
 Evita dar consejos médicos, diagnósticos o recomendar consultas a médicos.
 No uses frases genéricas como 'consulta a un profesional'.
-Limítate a sugerir suplementos o combinaciones de suplementos que sean comunes en el ámbito naturista.
 Sé concreto, breve y claro en tus recomendaciones."""},
                 {"role": "user", "content": consulta}
             ]
@@ -88,7 +96,7 @@ df_productos = cargar_catalogo()
 if not df_productos.empty:
     df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-# Categorías que no deben mostrarse
+# Categorías a excluir
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
 # Interfaz
@@ -104,10 +112,9 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    # Extraer ingredientes dinámicamente de la respuesta textual
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
-    # Guardar automáticamente en el CSV
+    # Guardar en CSV
     guardar_en_historial_csv(
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         consulta_usuario,
@@ -135,7 +142,6 @@ if consulta_usuario:
 
             productos_relevantes = productos_relevantes.drop_duplicates()
 
-            # Filtrar para excluir ciertas categorías
             productos_filtrados = productos_relevantes[
                 ~productos_relevantes[nombre_columna_categoria].apply(lambda x: limpiar_acentos(str(x))).isin(categorias_excluidas)
             ].sort_values(by='nombre')
@@ -155,12 +161,7 @@ if consulta_usuario:
     else:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
 
-    # Botón para descargar historial
-    if os.path.exists('historial_consultas.csv'):
-        with open('historial_consultas.csv', 'rb') as f:
-            st.download_button(
-                label="⬇️ Descargar historial de consultas",
-                data=f,
-                file_name='historial_consultas.csv',
-                mime='text/csv'
-            )
+# Botón de descarga de historial
+if os.path.exists('historial_consultas.csv'):
+    with open('historial_consultas.csv', 'rb') as f:
+        st.download_button('⬇️ Descargar historial de consultas', f, file_name='historial_consultas.csv')
