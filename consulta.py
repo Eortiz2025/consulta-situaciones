@@ -53,13 +53,14 @@ def clasificar_necesidad(texto_usuario):
             return categoria
     return None
 
-# Función para generar una breve descripción de un producto utilizando OpenAI
-def obtener_descripcion_producto(nombre_producto):
+# Función para obtener una breve descripción de un producto utilizando OpenAI
+def obtener_descripcion_producto(nombre_producto, categoria_producto):
     prompt = f"""
 Eres un asesor experto en suplementos naturistas.
 
-Dame una breve descripción de máximo 2 líneas explicando para qué podría servir un suplemento llamado "{nombre_producto}".
-No repitas el nombre ni inventes efectos médicos exagerados.
+Describe brevemente (máximo 2 líneas) el posible beneficio de un suplemento llamado "{nombre_producto}", perteneciente a la categoría de "{categoria_producto}".
+No inventes enfermedades ni tratamientos médicos específicos. No repitas el nombre completo.
+Sé claro, breve y realista basado en el contexto de suplementos naturistas.
 """
     try:
         respuesta = openai.ChatCompletion.create(
@@ -74,7 +75,7 @@ No repitas el nombre ni inventes efectos médicos exagerados.
         descripcion = respuesta.choices[0].message['content'].strip()
         return descripcion
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"❌ Error generando descripción: {e}"
 
 # Cargar el catálogo
 df_productos = cargar_catalogo()
@@ -142,9 +143,14 @@ if consulta_necesidad:
                     productos_categoria['código'].astype(str) == codigo_seleccionado
                 ].iloc[0]
 
-                descripcion = obtener_descripcion_producto(producto_seleccionado['nombre'])
+                # Obtener nombre y categoría del producto seleccionado
+                nombre_producto = producto_seleccionado['nombre']
+                categoria_producto = producto_seleccionado[nombre_columna_categoria]
 
-                st.info(f"🔹 **{producto_seleccionado['nombre']}**\n\nℹ️ {descripcion}")
+                descripcion = obtener_descripcion_producto(nombre_producto, categoria_producto)
+
+                st.info(f"🔹 **{nombre_producto}**\n\nℹ️ {descripcion}")
+
         else:
             st.warning(f"⚠️ No se encontraron productos relacionados con: **{categoria_detectada.capitalize()}**.")
 
