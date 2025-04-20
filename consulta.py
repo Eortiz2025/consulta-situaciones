@@ -24,40 +24,41 @@ def limpiar_acentos(texto):
         return ""
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').lower()
 
-# Función para extraer posibles ingredientes de un texto (dinámico)
+# Función mejorada para extraer ingredientes de respuesta
 def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = [
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima", "espirulina", "spirulina",
         "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate", "probiótico", "probiotico",
-        "vitamina", "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio", "carbon activado", "semilla de calabaza", "saw palmetto", "ortiga"
+        "vitamina", "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
+        "carbon activado", "semilla de calabaza", "saw palmetto", "ortiga"
     ]
+    texto_limpio = limpiar_acentos(texto.lower())
+    palabras_texto = re.findall(r'\b\w+\b', texto_limpio)
+
     encontrados = []
-    texto_limpio = limpiar_acentos(texto)
     for ingrediente in posibles_ingredientes:
-        if limpiar_acentos(ingrediente) in texto_limpio:
+        ingrediente_limpio = limpiar_acentos(ingrediente.lower())
+        if ingrediente_limpio in palabras_texto:
             encontrados.append(ingrediente)
     return list(set(encontrados))
 
 # Función para consultar OpenAI
+
 def consultar_openai_suplementos(consulta):
     try:
         respuesta = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             temperature=0.5,
-            max_tokens=400,
+            max_tokens=300,
             messages=[
-                {"role": "system", "content": """
-Eres un asesor experto en suplementos naturistas.
-
-Tu tarea es:
-- Recomendar suplementos o ingredientes naturales para aliviar o apoyar de forma complementaria cualquier malestar, síntoma o condición que te describa el usuario.
-- Siempre responde mencionando suplementos naturistas o ingredientes activos reales.
-- Interpreta y comprende expresiones populares, coloquiales y regionalismos mexicanos (por ejemplo: "chorro", "dolor de panza", "nervios", "estar desganado", etc).
-- No des consejos médicos, no digas "consulta a un médico", no emitas diagnósticos.
-- No incluyas recomendaciones alimenticias generales ni cambios de estilo de vida.
-- Sé concreto, breve, amigable y claro.
-- Solo responde recomendando suplementos o combinaciones de suplementos usados comúnmente en herbolaria o naturismo.
-"""},
+                {"role": "system", "content": """Eres un asesor experto en suplementos naturistas.
+Tu tarea es recomendar suplementos o ingredientes naturales que puedan ayudar a aliviar o apoyar de forma complementaria el malestar, síntoma o condición que te describa el usuario.
+Siempre responde mencionando directamente suplementos naturistas o ingredientes activos.
+Entiende los regionalismos mexicanos.
+Evita dar consejos médicos, diagnósticos o recomendar consultas a médicos.
+No uses frases genéricas como 'consulta a un profesional'.
+Limítate a sugerir suplementos o combinaciones de suplementos que sean comunes en el ámbito naturista.
+Sé concreto, breve y claro en tus recomendaciones."""},
                 {"role": "user", "content": consulta}
             ]
         )
@@ -154,7 +155,12 @@ if consulta_usuario:
     else:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
 
-# Agregar botón para descargar historial CSV
-if os.path.exists('historial_consultas.csv'):
-    with open('historial_consultas.csv', 'rb') as f:
-        st.download_button('⬇️ Descargar historial de consultas', f, file_name='historial_consultas.csv')
+    # Botón para descargar historial
+    if os.path.exists('historial_consultas.csv'):
+        with open('historial_consultas.csv', 'rb') as f:
+            st.download_button(
+                label="⬇️ Descargar historial de consultas",
+                data=f,
+                file_name='historial_consultas.csv',
+                mime='text/csv'
+            )
