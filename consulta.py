@@ -12,34 +12,43 @@ df_productos = cargar_catalogo()
 # Título principal
 st.title("🔎 Consulta de Productos - Naturista")
 
-# Pregunta inicial: ¿Qué tipo de producto estás buscando?
-st.subheader("¿Qué tipo de producto estás buscando?")
+# Tipo de búsqueda
+tipo_busqueda = st.selectbox(
+    "¿Cómo quieres buscar?",
+    ["Por Nombre", "Por Serie"]
+)
 
-# Obtener las opciones únicas de 'Serie de producto'
-series_disponibles = df_productos['Serie de producto'].dropna().unique()
-serie_seleccionada = st.selectbox("Selecciona una serie de producto:", options=sorted(series_disponibles))
+# Buscar por Nombre
+if tipo_busqueda == "Por Nombre":
+    busqueda_nombre = st.text_input("Escribe el nombre o parte del nombre del producto:")
 
-# Campo de búsqueda adicional
-busqueda = st.text_input("Escribe el nombre o parte del nombre del producto:")
+    if busqueda_nombre:
+        resultados = df_productos[df_productos['Nombre'].str.contains(busqueda_nombre, case=False, na=False)]
 
-# Resultado de búsqueda
-if serie_seleccionada:
-    # Filtrar primero por serie
-    filtro_serie = df_productos[df_productos['Serie de producto'] == serie_seleccionada]
+        if not resultados.empty:
+            resultados_mostrar = resultados[['Código', 'Nombre', 'Serie de producto', 'Precio de venta con IVA']].copy()
+            resultados_mostrar['Precio de venta con IVA'] = resultados_mostrar['Precio de venta con IVA'].astype(int)
+            resultados_mostrar = resultados_mostrar.rename(columns={'Precio de venta con IVA': 'Precio'})
 
-    if busqueda:
-        # Luego filtrar por nombre
-        resultados = filtro_serie[filtro_serie['Nombre'].str.contains(busqueda, case=False, na=False)]
-    else:
-        resultados = filtro_serie
+            st.success(f"✅ Se encontraron {len(resultados_mostrar)} productos:")
+            st.dataframe(resultados_mostrar)
+        else:
+            st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 
-    if not resultados.empty:
-        # Preparar los resultados para mostrar
-        resultados_mostrar = resultados[['Código', 'Nombre', 'Serie de producto', 'Precio de venta con IVA']].copy()
-        resultados_mostrar['Precio de venta con IVA'] = resultados_mostrar['Precio de venta con IVA'].astype(int)
-        resultados_mostrar = resultados_mostrar.rename(columns={'Precio de venta con IVA': 'Precio'})
+# Buscar por Serie
+elif tipo_busqueda == "Por Serie":
+    series_disponibles = df_productos['Serie de producto'].dropna().unique()
+    serie_seleccionada = st.selectbox("Selecciona una serie de producto:", options=sorted(series_disponibles))
 
-        st.success(f"✅ Se encontraron {len(resultados_mostrar)} productos:")
-        st.dataframe(resultados_mostrar)
-    else:
-        st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda en esta serie.")
+    if serie_seleccionada:
+        resultados = df_productos[df_productos['Serie de producto'] == serie_seleccionada]
+
+        if not resultados.empty:
+            resultados_mostrar = resultados[['Código', 'Nombre', 'Serie de producto', 'Precio de venta con IVA']].copy()
+            resultados_mostrar['Precio de venta con IVA'] = resultados_mostrar['Precio de venta con IVA'].astype(int)
+            resultados_mostrar = resultados_mostrar.rename(columns={'Precio de venta con IVA': 'Precio'})
+
+            st.success(f"✅ Se encontraron {len(resultados_mostrar)} productos en la serie seleccionada:")
+            st.dataframe(resultados_mostrar)
+        else:
+            st.warning("⚠️ No se encontraron productos en esta serie.")
