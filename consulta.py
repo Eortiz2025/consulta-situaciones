@@ -79,8 +79,11 @@ No repitas el nombre ni inventes efectos médicos exagerados.
 # Cargar catálogo
 df_productos = cargar_catalogo()
 
-# Limpiar nombres de columnas: quitar espacios, convertir a minúsculas
+# Limpiar nombres de columnas
 df_productos.columns = df_productos.columns.str.strip().str.lower()
+
+# Detectar automáticamente la columna de categoría (4ta columna)
+nombre_columna_categoria = df_productos.columns[3]  # 0,1,2,3 --> cuarta columna
 
 # Título principal
 st.title("🔎 Consulta - Karolo")
@@ -113,12 +116,8 @@ if consulta_necesidad:
     if categoria_detectada:
         st.success(f"✅ Detectamos que buscas productos relacionados con: **{categoria_detectada.capitalize()}**")
 
-        # Buscar productos de esa categoría (usando ahora columna "categoria" limpia)
-        if "categoria" in df_productos.columns:
-            productos_categoria = df_productos[df_productos['categoria'].str.lower() == categoria_detectada.lower()]
-        else:
-            st.error("❌ Error: No se encontró la columna 'categoria' en el catálogo.")
-            productos_categoria = pd.DataFrame()
+        # Buscar productos de esa categoría usando la cuarta columna
+        productos_categoria = df_productos[df_productos[nombre_columna_categoria].str.lower() == categoria_detectada.lower()]
 
         if not productos_categoria.empty:
             st.subheader("🎯 Productos sugeridos:")
