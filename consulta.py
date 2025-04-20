@@ -78,11 +78,17 @@ def extraer_ingredientes_respuesta(respuesta_openai):
     ingredientes = [p for p in palabras if p not in comunes and len(p) > 3]
     return list(set(ingredientes))
 
-# Función para buscar productos por ingredientes en Categoría y Nombre
+# Función para buscar productos por ingredientes en Categoría (5ta columna) y Nombre
 def buscar_productos_por_ingredientes(df, ingredientes):
     resultados = pd.DataFrame()
+    try:
+        columna_categoria = df.iloc[:, 4]  # 5ta columna
+    except Exception as e:
+        st.error(f"❌ Error accediendo a la columna de categoría: {e}")
+        return resultados
+
     for ingrediente in ingredientes:
-        coincidencias_categoria = df[df['categoria'].astype(str).str.contains(ingrediente, case=False, na=False)]
+        coincidencias_categoria = df[columna_categoria.astype(str).str.contains(ingrediente, case=False, na=False)]
         coincidencias_nombre = df[df['nombre'].astype(str).str.contains(ingrediente, case=False, na=False)]
         resultados = pd.concat([resultados, coincidencias_categoria, coincidencias_nombre])
     resultados = resultados.drop_duplicates()
@@ -92,7 +98,6 @@ def buscar_productos_por_ingredientes(df, ingredientes):
 df_productos = cargar_catalogo()
 if not df_productos.empty:
     df_productos.columns = df_productos.columns.str.strip().str.lower()
-    nombre_columna_categoria = df_productos.columns[4]
 
 # Interfaz Streamlit
 st.title("🔎 Consulta - Karolo")
@@ -138,7 +143,6 @@ if consulta_usuario:
             respuesta_openai = consultar_openai_malestar(consulta_usuario)
         st.info(f"ℹ️ {respuesta_openai}")
 
-        # Nueva lógica: preguntar si quiere ver productos
         buscar_productos = st.checkbox("🔎 ¿Quieres ver si tenemos productos recomendados para esto?")
         if buscar_productos:
             if not df_productos.empty:
@@ -148,10 +152,13 @@ if consulta_usuario:
                     if not productos_encontrados.empty:
                         st.subheader("🎯 Productos recomendados según tu necesidad:")
                         for idx, row in productos_encontrados.iterrows():
-                            codigo = str(row['código'])
-                            nombre = row['nombre']
-                            precio = float(row['precio de venta con iva'])
-                            st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+                            try:
+                                codigo = str(row.iloc[0])
+                                nombre = row['nombre']
+                                precio = float(row['precio de venta con iva'])
+                                st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+                            except:
+                                continue
                     else:
                         st.warning("⚠️ No se encontraron productos exactos para los ingredientes sugeridos.")
                 else:
