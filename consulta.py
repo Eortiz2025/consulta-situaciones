@@ -16,28 +16,26 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para normalizar texto (quita acentos y convierte a minúsculas)
-def normalizar_texto(texto):
+# Función para limpiar texto (eliminar acentos y pasar a minúsculas)
+def limpiar_texto(texto):
     if not isinstance(texto, str):
-        texto = str(texto)
-    texto = unicodedata.normalize('NFKD', texto)
-    texto = ''.join(c for c in texto if not unicodedata.combining(c))
+        return ""
+    texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
     return texto.lower()
 
-# Función para extraer posibles ingredientes naturales desde la respuesta
-def extraer_ingredientes(texto):
-    palabras_clave = [
-        "cúrcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
-        "zinc", "vitamina", "probiótico", "probiotico", "espirulina", "ginkgo", "pasiflora",
-        "hierba de sapo", "cuachalalate", "colágeno", "magnesio", "resveratrol", "melatonina",
-        "té verde", "carbon activado", "carbón activado"
+# Función para extraer posibles ingredientes mencionados en la respuesta de OpenAI
+def extraer_ingredientes_de_respuesta(texto):
+    posibles = [
+        "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
+        "zinc", "vitamina", "probiotico", "spirulina", "ginkgo", "pasiflora", "hierba de sapo",
+        "cuachalalate", "colageno", "magnesio", "resveratrol", "espirulina", "melatonina", "te verde",
+        "eufrasia", "carbon activado"
     ]
-    texto_normalizado = normalizar_texto(texto)
     encontrados = []
-    for palabra in palabras_clave:
-        palabra_normalizada = normalizar_texto(palabra)
-        if palabra_normalizada in texto_normalizado:
-            encontrados.append(palabra_normalizada)
+    texto = limpiar_texto(texto)
+    for palabra in posibles:
+        if palabra in texto:
+            encontrados.append(palabra)
     return list(set(encontrados))
 
 # Función para consultar OpenAI sobre suplementos
@@ -83,50 +81,44 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    # Buscar ingredientes naturales detectados
-    ingredientes_detectados = extraer_ingredientes(respuesta_openai)
+    ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
-    if ingredientes_detectados:
-        st.markdown("🔎 Detectamos estos ingredientes relevantes:")
-        st.write(", ".join(ingredientes_detectados))
+    # Buscar productos relacionados si el usuario quiere
+    buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
 
-        buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
+    if buscar_productos:
+        productos_relevantes = pd.DataFrame()
+        nombre_columna_categoria = df_productos.columns[4]
 
-        if buscar_productos:
-            productos_relevantes = pd.DataFrame()
-            nombre_columna_categoria = df_productos.columns[4]
+        if not ingredientes_detectados:
+            # Si no detectamos ingredientes, usamos la consulta del usuario directamente
+            ingredientes_detectados = re.findall(r'\b[a-záéíóúñ]+\b', limpiar_texto(consulta_usuario))
 
-            for ingrediente in ingredientes_detectados:
-                # Buscar en nombre normalizado
-                coincidencias_nombre = df_productos[
-                    df_productos['nombre'].apply(lambda x: ingrediente in normalizar_texto(x))
-                ]
+        # Limpiar nombres de catálogo
+        df_productos['nombre_limpio'] = df_productos['nombre'].apply(limpiar_texto)
+        df_productos['categoria_limpio'] = df_productos[nombre_columna_categoria].apply(limpiar_texto)
 
-                # Buscar en categoría normalizada
-                coincidencias_categoria = df_productos[
-                    df_productos[nombre_columna_categoria].apply(lambda x: ingrediente in normalizar_texto(x))
-                ]
+        for ingrediente in ingredientes_detectados:
+            coincidencias_nombre = df_productos[df_productos['nombre_limpio'].str.contains(ingrediente, na=False)]
+            coincidencias_categoria = df_productos[df_productos['categoria_limpio'].str.contains(ingrediente, na=False)]
+            productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
-                productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
+        productos_relevantes = productos_relevantes.drop_duplicates()
 
-            productos_relevantes = productos_relevantes.drop_duplicates()
+        # Filtrar para excluir ciertas categorías
+        productos_filtrados = productos_relevantes[
+            ~productos_relevantes[nombre_columna_categoria].str.lower().isin(categorias_excluidas)
+        ].sort_values(by='nombre')
 
-            # Filtrar para excluir ciertas categorías
-            productos_filtrados = productos_relevantes[
-                ~df_productos[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
-            ].sort_values(by='nombre')
-
-            if not productos_filtrados.empty:
-                st.subheader("🎯 Productos sugeridos:")
-                for idx, row in productos_filtrados.iterrows():
-                    try:
-                        codigo = str(row.iloc[0])
-                        nombre = row['nombre']
-                        precio = float(row['precio de venta con iva'])
-                        st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
-                    except:
-                        continue
-            else:
-                st.warning("⚠️ No se encontraron productos relevantes en catálogo.")
-    else:
-        st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
+        if not productos_filtrados.empty:
+            st.subheader("🎯 Productos sugeridos:")
+            for idx, row in productos_filtrados.iterrows():
+                try:
+                    codigo = str(row.iloc[0])
+                    nombre = row['nombre']
+                    precio = float(row['precio de venta con iva'])
+                    st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+                except:
+                    continue
+        else:
+            st.warning("⚠️ No se encontraron productos relevantes en catálogo.")
