@@ -111,11 +111,16 @@ if consulta_necesidad:
 
         if not resultados.empty:
             st.subheader("🎯 Productos sugeridos:")
-            for index, row in resultados.iterrows():
-                st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
 
-                # Botón para ver más detalles
-                if st.button(f"🔎 Ver más detalles - {row['Código']}", key=f"detalle_{row['Código']}"):
+            for index, row in resultados.iterrows():
+                col1, col2 = st.columns([0.1, 0.9])  # Checkbox y luego descripción
+                with col1:
+                    ver_detalles = st.checkbox("", key=f"detalle_{row['Código']}")
+                with col2:
+                    st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
+
+                # Si activan el checkbox, mostrar descripción
+                if ver_detalles:
                     descripcion = obtener_descripcion_producto(row['Nombre'])
                     st.info(f"ℹ️ {descripcion}")
         else:
