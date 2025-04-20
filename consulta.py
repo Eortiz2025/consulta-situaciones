@@ -15,15 +15,13 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para detectar si la consulta es sobre beneficios o síntomas
-def detectar_consulta_beneficio(texto):
-    patrones = ["para qué sirve", "beneficio", "beneficios", "ayuda", "utilidad", "dolor", "malestar", "síntoma"]
-    texto = texto.lower()
-    return any(patron in texto for patron in patrones)
-
 # Función para extraer posibles ingredientes de una respuesta
 def extraer_ingredientes_de_respuesta(texto):
-    posibles = ["cúrcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta", "zinc", "vitamina", "probiotico", "spirulina", "ginkgo", "pasiflora", "hierba de sapo", "cuachalalate"]
+    posibles = [
+        "cúrcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
+        "zinc", "vitamina", "probiotico", "spirulina", "ginkgo", "pasiflora", "hierba de sapo",
+        "cuachalalate", "colágeno", "magnesio", "resveratrol", "espirulina", "melatonina", "té verde"
+    ]
     encontrados = []
     texto = texto.lower()
     for palabra in posibles:
@@ -65,47 +63,44 @@ st.header("👋 Hola, ¿En qué te puedo ayudar?")
 consulta_usuario = st.text_input("✍️ Escribe tu necesidad o pregunta:")
 
 if consulta_usuario:
-    st.info(f"🔎 Procesando tu consulta...")
+    st.info("🔎 Procesando tu consulta...")
 
-    if detectar_consulta_beneficio(consulta_usuario):
-        with st.spinner("Consultando experto en suplementos naturistas..."):
-            respuesta_openai = consultar_openai_suplementos(consulta_usuario)
-        st.success(f"ℹ️ {respuesta_openai}")
+    # Siempre mandar a OpenAI sin filtro
+    with st.spinner("Consultando asesor experto..."):
+        respuesta_openai = consultar_openai_suplementos(consulta_usuario)
+    st.success(f"ℹ️ {respuesta_openai}")
 
-        # Buscar ingredientes mencionados
-        ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
+    # Buscar ingredientes mencionados en la respuesta
+    ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
-        if ingredientes_detectados:
-            st.markdown("🔎 Detectamos estos ingredientes relevantes:")
-            st.write(", ".join(ingredientes_detectados))
+    if ingredientes_detectados:
+        st.markdown("🔎 Detectamos estos ingredientes relevantes:")
+        st.write(", ".join(ingredientes_detectados))
 
-            buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
+        buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
 
-            if buscar_productos:
-                productos_relevantes = pd.DataFrame()
-                nombre_columna_categoria = df_productos.columns[4]
+        if buscar_productos:
+            productos_relevantes = pd.DataFrame()
+            nombre_columna_categoria = df_productos.columns[4]
 
-                for ingrediente in ingredientes_detectados:
-                    coincidencias_nombre = df_productos[df_productos['nombre'].str.contains(ingrediente, case=False, na=False)]
-                    coincidencias_categoria = df_productos[df_productos[nombre_columna_categoria].astype(str).str.contains(ingrediente, case=False, na=False)]
-                    productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
+            for ingrediente in ingredientes_detectados:
+                coincidencias_nombre = df_productos[df_productos['nombre'].str.contains(ingrediente, case=False, na=False)]
+                coincidencias_categoria = df_productos[df_productos[nombre_columna_categoria].astype(str).str.contains(ingrediente, case=False, na=False)]
+                productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
-                productos_relevantes = productos_relevantes.drop_duplicates().sort_values(by='nombre')
+            productos_relevantes = productos_relevantes.drop_duplicates().sort_values(by='nombre')
 
-                if not productos_relevantes.empty:
-                    st.subheader("🎯 Productos sugeridos:")
-                    for idx, row in productos_relevantes.iterrows():
-                        try:
-                            codigo = str(row.iloc[0])
-                            nombre = row['nombre']
-                            precio = float(row['precio de venta con iva'])
-                            st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
-                        except:
-                            continue
-                else:
-                    st.warning("⚠️ No se encontraron productos relacionados en catálogo.")
-        else:
-            st.warning("⚠️ No se detectaron ingredientes específicos para buscar productos.")
-
+            if not productos_relevantes.empty:
+                st.subheader("🎯 Productos sugeridos:")
+                for idx, row in productos_relevantes.iterrows():
+                    try:
+                        codigo = str(row.iloc[0])
+                        nombre = row['nombre']
+                        precio = float(row['precio de venta con iva'])
+                        st.write(f"{codigo} | {nombre} | ${precio:,.2f}")
+                    except:
+                        continue
+            else:
+                st.warning("⚠️ No se encontraron productos relacionados en catálogo.")
     else:
-        st.warning("⚠️ Tu consulta no parece relacionada a suplementos naturistas.")
+        st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
