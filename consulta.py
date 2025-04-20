@@ -92,6 +92,14 @@ def buscar_productos_por_ingredientes(df, ingredientes):
         coincidencias_nombre = df[df['nombre'].astype(str).str.contains(ingrediente, case=False, na=False)]
         resultados = pd.concat([resultados, coincidencias_categoria, coincidencias_nombre])
     resultados = resultados.drop_duplicates()
+
+    # Aplicar filtro para excluir productos no deseados
+    palabras_excluir = ["jabón", "shampoo", "gel", "crema", "desodorante", "pomada", "spray", "cosmético", "loción", "perfume", "sabon", "barra", "protector", "ungüento"]
+    resultados = resultados[~resultados['nombre'].str.lower().str.contains('|'.join(palabras_excluir))]
+
+    # Ordenar alfabéticamente por nombre
+    resultados = resultados.sort_values(by='nombre')
+
     return resultados
 
 # Cargar catálogo
