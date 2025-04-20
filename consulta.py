@@ -3,6 +3,7 @@ import pandas as pd
 import openai
 import re
 import unicodedata
+from datetime import datetime
 
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -16,15 +17,27 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
-# Función para normalizar texto eliminando acentos
-def normalizar_texto(texto):
-    if isinstance(texto, str):
-        texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
-        return texto.lower()
-    else:
+# Función para limpiar acentos
+def limpiar_acentos(texto):
+    if not isinstance(texto, str):
         return ""
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').lower()
 
-# Función para consultar OpenAI sobre suplementos
+# Función para extraer posibles ingredientes de un texto (dinámico)
+def extraer_ingredientes_de_respuesta(texto):
+    posibles_ingredientes = [
+        "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima", "espirulina", "spirulina",
+        "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate", "probiótico", "probiotico",
+        "vitamina", "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio"
+    ]
+    encontrados = []
+    texto_limpio = limpiar_acentos(texto)
+    for ingrediente in posibles_ingredientes:
+        if limpiar_acentos(ingrediente) in texto_limpio:
+            encontrados.append(ingrediente)
+    return list(set(encontrados))
+
+# Función para consultar OpenAI
 def consultar_openai_suplementos(consulta):
     try:
         respuesta = openai.ChatCompletion.create(
@@ -46,29 +59,15 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
-# Función para extraer ingredientes detectados directamente desde la respuesta
-def extraer_ingredientes_de_respuesta(texto):
-    posibles = [
-        "curcuma", "glucosamina", "condroitina", "omega", "manzanilla", "jengibre", "menta",
-        "zinc", "vitamina", "probiotico", "spirulina", "espirulina", "pasiflora", "hierba",
-        "cuachalalate", "colageno", "magnesio", "resveratrol", "melatonina", "triptófano", "luteina"
-    ]
-    encontrados = []
-    texto_normalizado = normalizar_texto(texto)
-    for palabra in posibles:
-        if palabra in texto_normalizado:
-            encontrados.append(palabra)
-    return list(set(encontrados))
-
 # Cargar catálogo
 df_productos = cargar_catalogo()
 if not df_productos.empty:
     df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-# Categorías a excluir
+# Categorías que no deben mostrarse
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
-# Interfaz principal
+# Interfaz
 st.title("🔎 Consulta - Karolo")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
 
@@ -79,9 +78,9 @@ if consulta_usuario:
 
     with st.spinner("Consultando asesor experto..."):
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
-
     st.success(f"ℹ️ {respuesta_openai}")
 
+    # Extraer ingredientes dinámicamente de la respuesta textual
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
     if ingredientes_detectados:
@@ -96,17 +95,18 @@ if consulta_usuario:
 
             for ingrediente in ingredientes_detectados:
                 coincidencias_nombre = df_productos[
-                    df_productos['nombre'].apply(normalizar_texto).str.contains(ingrediente, na=False)
+                    df_productos['nombre'].apply(lambda x: limpiar_acentos(str(x))).str.contains(limpiar_acentos(ingrediente), na=False)
                 ]
                 coincidencias_categoria = df_productos[
-                    df_productos[nombre_columna_categoria].apply(normalizar_texto).str.contains(ingrediente, na=False)
+                    df_productos[nombre_columna_categoria].apply(lambda x: limpiar_acentos(str(x))).str.contains(limpiar_acentos(ingrediente), na=False)
                 ]
                 productos_relevantes = pd.concat([productos_relevantes, coincidencias_nombre, coincidencias_categoria])
 
             productos_relevantes = productos_relevantes.drop_duplicates()
 
+            # Filtrar para excluir ciertas categorías
             productos_filtrados = productos_relevantes[
-                ~productos_relevantes[nombre_columna_categoria].astype(str).str.lower().isin(categorias_excluidas)
+                ~df_productos[nombre_columna_categoria].apply(lambda x: limpiar_acentos(str(x))).isin(categorias_excluidas)
             ].sort_values(by='nombre')
 
             if not productos_filtrados.empty:
