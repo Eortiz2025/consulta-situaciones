@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
+import openai
+
+# Configura tu clave API aquí
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Función para cargar el catálogo
 @st.cache_data
@@ -9,34 +11,31 @@ def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Función para buscar una breve descripción en DuckDuckGo
-def buscar_descripcion_producto(nombre, ean):
+# Función para consultar descripción a ChatGPT
+def consultar_descripcion_chatgpt(nombre, ean):
+    prompt = f"Explica de forma breve, en máximo 400 caracteres, qué es y para qué sirve el producto '{nombre}' con código EAN {ean}."
+
     try:
-        query = f"{nombre} {ean} para qué sirve"
-        url = f"https://duckduckgo.com/html/?q={query}"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
-        }
-        res = requests.get(url, headers=headers)
-        if res.status_code != 200:
-            return "No se encontró descripción disponible."
+        respuesta = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Eres un experto en productos naturistas y suplementos."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150,
+            temperature=0.5
+        )
 
-        soup = BeautifulSoup(res.text, "html.parser")
-        results = soup.find_all('a', class_='result__a')
-
-        if results:
-            primer_resultado = results[0].text
-            return primer_resultado[:400]  # Máximo 400 caracteres
-        else:
-            return "No se encontró descripción disponible."
+        texto = respuesta.choices[0].message['content'].strip()
+        return texto
     except Exception as e:
-        return "No se encontró descripción disponible."
+        return "No se encontró descripción disponible. Consulta con tu asesor naturista."
 
 # Cargar datos
 df_productos = cargar_catalogo()
 
 # Título principal
-st.title("🔎 Consulta de Productos - Naturista (Descripción automática)")
+st.title("🔎 Consulta de Productos - Naturista (Con ChatGPT Descripción Inteligente)")
 
 # Tipo de búsqueda
 tipo_busqueda = st.selectbox(
@@ -56,7 +55,7 @@ if tipo_busqueda == "Por Nombre":
 
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"prod_{index}"):
-                    descripcion = buscar_descripcion_producto(row['Nombre'], str(row['Código EAN']))
+                    descripcion = consultar_descripcion_chatgpt(row['Nombre'], str(row['Código EAN']))
                     st.info(f"ℹ️ **{row['Nombre']}**:\n\n{descripcion}")
         else:
             st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
@@ -74,7 +73,7 @@ elif tipo_busqueda == "Por Serie":
 
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"serie_{index}"):
-                    descripcion = buscar_descripcion_producto(row['Nombre'], str(row['Código EAN']))
+                    descripcion = consultar_descripcion_chatgpt(row['Nombre'], str(row['Código EAN']))
                     st.info(f"ℹ️ **{row['Nombre']}**:\n\n{descripcion}")
         else:
             st.warning("⚠️ No se encontraron productos en esta serie.")
