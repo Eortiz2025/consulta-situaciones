@@ -70,7 +70,7 @@ df_productos = cargar_catalogo()
 palabras_prohibidas = ['incienso', 'shampoo', 'jabón', 'jabon', 'loción', 'locion', 'spray', 'aroma', 'ambientador']
 
 # Título principal
-st.title("🔎 Consulta - Karolo (Flujo Inteligente Mejorado)")
+st.title("🔎 Consulta - Karolo")
 
 # Saludo inicial
 st.header("👋 Hola, ¿en qué puedo ayudarte hoy?")
