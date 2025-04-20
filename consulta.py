@@ -3,6 +3,7 @@ import pandas as pd
 import openai
 import re
 import unicodedata
+import os
 from datetime import datetime
 
 # Configurar API Key de OpenAI
@@ -59,6 +60,23 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
+# Función para guardar historial en CSV
+def guardar_en_historial_csv(fecha_hora, pregunta, ingredientes):
+    ingredientes_texto = ", ".join(ingredientes) if ingredientes else "Ninguno"
+    nuevo_registro = {
+        "fecha_hora": fecha_hora,
+        "pregunta": pregunta,
+        "ingredientes_detectados": ingredientes_texto
+    }
+    archivo_csv = 'historial_consultas.csv'
+    archivo_existe = os.path.exists(archivo_csv)
+    df_nuevo = pd.DataFrame([nuevo_registro])
+
+    if archivo_existe:
+        df_nuevo.to_csv(archivo_csv, mode='a', header=False, index=False)
+    else:
+        df_nuevo.to_csv(archivo_csv, mode='w', header=True, index=False)
+
 # Cargar catálogo
 df_productos = cargar_catalogo()
 if not df_productos.empty:
@@ -83,6 +101,13 @@ if consulta_usuario:
     # Extraer ingredientes dinámicamente de la respuesta textual
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
+    # Guardar automáticamente en el CSV
+    guardar_en_historial_csv(
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        consulta_usuario,
+        ingredientes_detectados
+    )
+
     if ingredientes_detectados:
         st.markdown("🔎 Detectamos estos criterios de búsqueda:")
         st.write(", ".join(ingredientes_detectados))
@@ -106,11 +131,11 @@ if consulta_usuario:
 
             # Filtrar para excluir ciertas categorías
             productos_filtrados = productos_relevantes[
-                ~df_productos[nombre_columna_categoria].apply(lambda x: limpiar_acentos(str(x))).isin(categorias_excluidas)
+                ~productos_relevantes[nombre_columna_categoria].apply(lambda x: limpiar_acentos(str(x))).isin(categorias_excluidas)
             ].sort_values(by='nombre')
 
             if not productos_filtrados.empty:
-                st.subheader("🎯 Productos sugeridos:")
+                st.subheader("🌟 Productos sugeridos:")
                 for idx, row in productos_filtrados.iterrows():
                     try:
                         codigo = str(row.iloc[0])
