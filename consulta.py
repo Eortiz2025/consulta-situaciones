@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from duckduckgo_search import ddg_images
+import requests
+from bs4 import BeautifulSoup
 
 # Función para cargar el catálogo
 @st.cache_data
@@ -8,12 +9,23 @@ def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Función para buscar imagen en DuckDuckGo usando Código EAN
+# Nueva función para buscar imagen manualmente en DuckDuckGo
 def buscar_imagen_duckduckgo(ean):
     try:
-        resultados = ddg_images(ean, max_results=1)
-        if resultados:
-            return resultados[0]['image']
+        query = ean
+        url = f"https://duckduckgo.com/?q={query}&iax=images&ia=images"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+        }
+        res = requests.get(url, headers=headers)
+        if res.status_code != 200:
+            return None
+
+        soup = BeautifulSoup(res.text, "html.parser")
+        imgs = soup.find_all('img')
+
+        if len(imgs) > 1:
+            return imgs[1]['src']  # Normalmente la segunda imagen ya es de resultados
         else:
             return None
     except Exception as e:
@@ -23,7 +35,7 @@ def buscar_imagen_duckduckgo(ean):
 df_productos = cargar_catalogo()
 
 # Título principal
-st.title("🔎 Consulta de Productos - Naturista (con imágenes vía DuckDuckGo)")
+st.title("🔎 Consulta de Productos - Naturista (con imágenes vía DuckDuckGo manual)")
 
 # Tipo de búsqueda
 tipo_busqueda = st.selectbox(
@@ -41,11 +53,9 @@ if tipo_busqueda == "Por Nombre":
         if not resultados.empty:
             st.success(f"✅ Se encontraron {len(resultados)} productos:")
 
-            # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"prod_{index}"):
                     imagen_url = buscar_imagen_duckduckgo(str(row['Código EAN']))
-
                     if imagen_url:
                         st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
                     else:
@@ -64,11 +74,9 @@ elif tipo_busqueda == "Por Serie":
         if not resultados.empty:
             st.success(f"✅ Se encontraron {len(resultados)} productos en la serie seleccionada:")
 
-            # Mostrar productos con checkbox
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"serie_{index}"):
                     imagen_url = buscar_imagen_duckduckgo(str(row['Código EAN']))
-
                     if imagen_url:
                         st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
                     else:
