@@ -9,33 +9,34 @@ def cargar_catalogo():
     df = pd.read_excel('naturista.xlsx')
     return df
 
-# Nueva función para buscar imagen manualmente en DuckDuckGo
-def buscar_imagen_duckduckgo(ean):
+# Función para buscar una breve descripción en DuckDuckGo
+def buscar_descripcion_producto(nombre, ean):
     try:
-        query = ean
-        url = f"https://duckduckgo.com/?q={query}&iax=images&ia=images"
+        query = f"{nombre} {ean} para qué sirve"
+        url = f"https://duckduckgo.com/html/?q={query}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
         }
         res = requests.get(url, headers=headers)
         if res.status_code != 200:
-            return None
+            return "No se encontró descripción disponible."
 
         soup = BeautifulSoup(res.text, "html.parser")
-        imgs = soup.find_all('img')
+        results = soup.find_all('a', class_='result__a')
 
-        if len(imgs) > 1:
-            return imgs[1]['src']  # Normalmente la segunda imagen ya es de resultados
+        if results:
+            primer_resultado = results[0].text
+            return primer_resultado[:400]  # Máximo 400 caracteres
         else:
-            return None
+            return "No se encontró descripción disponible."
     except Exception as e:
-        return None
+        return "No se encontró descripción disponible."
 
 # Cargar datos
 df_productos = cargar_catalogo()
 
 # Título principal
-st.title("🔎 Consulta de Productos - Naturista (con imágenes vía DuckDuckGo manual)")
+st.title("🔎 Consulta de Productos - Naturista (Descripción automática)")
 
 # Tipo de búsqueda
 tipo_busqueda = st.selectbox(
@@ -55,11 +56,8 @@ if tipo_busqueda == "Por Nombre":
 
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"prod_{index}"):
-                    imagen_url = buscar_imagen_duckduckgo(str(row['Código EAN']))
-                    if imagen_url:
-                        st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
-                    else:
-                        st.warning("⚠️ Imagen no disponible para este producto.")
+                    descripcion = buscar_descripcion_producto(row['Nombre'], str(row['Código EAN']))
+                    st.info(f"ℹ️ **{row['Nombre']}**:\n\n{descripcion}")
         else:
             st.warning("⚠️ No se encontró ningún producto que coincida con tu búsqueda.")
 
@@ -76,10 +74,7 @@ elif tipo_busqueda == "Por Serie":
 
             for index, row in resultados.iterrows():
                 if st.checkbox(f"{row['Código']} - {row['Nombre']} (${int(row['Precio de venta con IVA'])})", key=f"serie_{index}"):
-                    imagen_url = buscar_imagen_duckduckgo(str(row['Código EAN']))
-                    if imagen_url:
-                        st.image(imagen_url, caption=row['Nombre'], use_column_width=True)
-                    else:
-                        st.warning("⚠️ Imagen no disponible para este producto.")
+                    descripcion = buscar_descripcion_producto(row['Nombre'], str(row['Código EAN']))
+                    st.info(f"ℹ️ **{row['Nombre']}**:\n\n{descripcion}")
         else:
             st.warning("⚠️ No se encontraron productos en esta serie.")
