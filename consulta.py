@@ -11,7 +11,7 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 def cargar_catalogo():
     return pd.read_excel('naturista.xlsx')
 
-# Función para consultar ChatGPT sobre palabras clave
+# Función para consultar ChatGPT sobre palabras clave si no encuentra directo
 def obtener_palabras_clave(necesidad_usuario):
     prompt = f"""
 Eres un experto en suplementos naturistas.
@@ -55,78 +55,98 @@ No repitas el nombre ni inventes efectos médicos exagerados.
                 {"role": "user", "content": prompt}
             ]
         )
-        return respuesta.choices[0].message['content'].strip()
+        descripcion = respuesta.choices[0].message['content'].strip()
+        return descripcion
     except Exception as e:
         return f"❌ Error: {e}"
 
-# Función para filtrar productos no adecuados
+# Función para filtrar productos que realmente son de ojos/visión
+def es_producto_de_ojos(nombre):
+    nombre = nombre.lower()
+    # Solo aceptar si contiene enfoque correcto
+    palabras_validas = ['ojo', 'ojos', 'visión', 'vista', 'ocular']
+    palabras_excluir = ['oído', 'oidos', 'pañuelo', 'té', 'tos', 'perfume', 'kilogramo', 'kilos']
+    return (
+        any(palabra in nombre for palabra in palabras_validas) and
+        not any(palabra in nombre for palabra in palabras_excluir)
+    )
+
+# Función para evitar productos generales no adecuados
 def es_producto_valido(nombre):
     palabras_prohibidas = ['incienso', 'shampoo', 'jabón', 'jabon', 'loción', 'locion', 'spray', 'aroma', 'ambientador']
-    return not any(p in nombre.lower() for p in palabras_prohibidas)
+    return not any(prohibida in nombre.lower() for prohibida in palabras_prohibidas)
 
 # Cargar catálogo
 df_productos = cargar_catalogo()
 
-# Interfaz
+# Título principal
 st.title("🔎 Consulta - Karolo")
+
+# Saludo inicial
 st.header("👋 Hola, ¿en qué puedo ayudarte hoy?")
 
-st.markdown("""
-🧠 Puedes preguntarme libremente:
+# Mensaje de orientación para el usuario
+st.markdown(
+    """
+    🧠 Puedes preguntarme libremente:
+    
+    - Quiero algo para la circulación
+    - ¿Qué recomiendas para fortalecer defensas?
+    - ¿Tienes algo para la diabetes?
+    - Me siento cansado, ¿qué puedo tomar?
 
-- Quiero algo para la circulación  
-- ¿Qué recomiendas para fortalecer defensas?  
-- ¿Tienes algo para la diabetes?  
-- Me siento cansado, ¿qué puedo tomar?
+    ¡Estoy aquí para ayudarte! 🌟
+    """
+)
 
-¡Estoy aquí para ayudarte! 🌟
-""")
-
+# Entrada del usuario
 consulta_necesidad = st.text_input("Escribe tu necesidad:")
 
 if consulta_necesidad:
-    st.info("🔎 Buscando coincidencias por palabras clave...")
+    st.info("🔎 Buscando coincidencias directas por palabras clave en catálogo...")
 
-    # Convertir la consulta a palabras clave individuales
-    palabras_usuario = re.findall(r'\b\w+\b', consulta_necesidad.lower())
+    # 1. Búsqueda inteligente por palabras individuales
+    palabras_usuario = consulta_necesidad.lower().split()
     filtro_directo = df_productos['Nombre'].str.contains('|'.join(palabras_usuario), case=False, na=False)
     resultados_directos = df_productos[filtro_directo]
     resultados_directos = resultados_directos[resultados_directos['Nombre'].apply(es_producto_valido)]
 
-    if not resultados_directos.empty:
-        st.success("✅ Encontramos productos directamente relacionados con tu consulta:")
-        for _, row in resultados_directos.iterrows():
+    # 2. Filtrar solo productos de ojos/visión si la necesidad parece ser de ese tipo
+    posibles_productos = resultados_directos[resultados_directos['Nombre'].apply(es_producto_de_ojos)]
+
+    if not posibles_productos.empty:
+        st.success("✅ Encontramos productos directamente relacionados a tu necesidad:")
+        for index, row in posibles_productos.iterrows():
             col1, col2 = st.columns([0.1, 0.9])
             with col1:
-                ver = st.checkbox("", key=f"directo_{row['Código']}")
+                ver_detalles = st.checkbox("", key=f"directo_{row['Código']}")
             with col2:
                 st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
-            if ver:
+            if ver_detalles:
                 descripcion = obtener_descripcion_producto(row['Nombre'])
                 st.info(f"ℹ️ {descripcion}")
     else:
-        st.info("🤖 No hubo coincidencias directas. Consultando al asesor experto...")
+        st.info("🔎 No encontramos coincidencias directas fuertes, preguntando al asesor experto...")
         palabras_clave = obtener_palabras_clave(consulta_necesidad)
 
         if palabras_clave:
-            st.success(f"🔍 Buscando con las palabras sugeridas por el asesor: {', '.join(palabras_clave)}")
-
+            st.success(f"✅ Basado en tu necesidad, se buscarán productos relacionados con: {', '.join(palabras_clave)}")
             filtro = df_productos['Nombre'].str.contains('|'.join(palabras_clave), case=False, na=False)
             resultados = df_productos[filtro]
             resultados = resultados[resultados['Nombre'].apply(es_producto_valido)]
 
             if not resultados.empty:
                 st.subheader("🎯 Productos sugeridos:")
-                for _, row in resultados.iterrows():
+                for index, row in resultados.iterrows():
                     col1, col2 = st.columns([0.1, 0.9])
                     with col1:
-                        ver = st.checkbox("", key=f"detalle_{row['Código']}")
+                        ver_detalles = st.checkbox("", key=f"detalle_{row['Código']}")
                     with col2:
                         st.write(f"🔹 **Código: {row['Código']}** - {row['Nombre']} - **Precio:** ${int(row['Precio de venta con IVA'])}")
-                    if ver:
+                    if ver_detalles:
                         descripcion = obtener_descripcion_producto(row['Nombre'])
                         st.info(f"ℹ️ {descripcion}")
             else:
-                st.warning("⚠️ No se encontraron productos con las palabras sugeridas.")
+                st.warning("⚠️ No encontramos productos relacionados en tu catálogo.")
         else:
-            st.warning("⚠️ No se pudieron generar sugerencias. Reformula tu pregunta si deseas.")
+            st.warning("⚠️ No se pudieron generar palabras clave. Intenta describir tu necesidad de otra forma.")
