@@ -100,7 +100,7 @@ if not df_productos.empty:
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
 # Interfaz principal
-st.title("🔎 Consulta - Karolo")
+st.title("🔎 Karolo Naturista")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
 
 consulta_usuario = st.text_input("✍️ Escribe tu necesidad o pregunta:")
