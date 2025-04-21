@@ -5,6 +5,7 @@ import re
 import unicodedata
 import os
 from datetime import datetime
+import pytz
 
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -24,26 +25,15 @@ def limpiar_acentos(texto):
         return ""
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').lower()
 
-# Lista extensa de ingredientes naturistas
-posibles_ingredientes = [
-    "cúrcuma", "glucosamina", "condroitina", "omega", "omega 3", "omega 6", "omega 9", "maca", "ginseng",
-    "rhodiola", "coenzima", "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo",
-    "cuachalalate", "probiótico", "probiotico", "vitamina", "vitamina c", "vitamina d", "vitamina e", "vitamina a",
-    "vitamina b12", "zinc", "magnesio", "calcio", "hierro", "selenio", "diente de león", "eufrasia", "colágeno",
-    "ácido hialurónico", "té verde", "té de manzanilla", "té de menta", "té de tila", "manzanilla", "menta",
-    "cardo mariano", "saw palmetto", "semilla de calabaza", "ortiga", "árnica", "jengibre", "cáscara sagrada",
-    "fenogreco", "aloe vera", "chlorella", "ashwagandha", "melena de león", "resveratrol", "bacopa monnieri",
-    "garcinia cambogia", "té rojo", "té blanco", "té negro", "matcha", "triptófano", "5-htp", "l-teanina",
-    "curcumina", "ácido alfa lipoico", "extracto de semilla de uva", "pqq", "semilla de lino", "cebada verde",
-    "alfalfa", "raíz de regaliz", "shatavari", "tribulus", "moringa", "echinacea", "guaraná", "camu camu",
-    "lúcuma", "spirulina azul", "pepita de calabaza", "romero", "ajo negro", "ajo", "clorofila", "guggul",
-    "astaxantina", "pterostilbeno", "berberina", "boswellia", "bacopa", "ginkgo biloba", "espino blanco",
-    "extracto de hoja de olivo", "extracto de arándano", "extracto de granada", "extracto de romero",
-    "extracto de jengibre", "extracto de canela", "extracto de pimienta negra"
-]
-
-# Función para extraer posibles ingredientes dinámicamente
+# Función para extraer posibles ingredientes de un texto
 def extraer_ingredientes_de_respuesta(texto):
+    posibles_ingredientes = [
+        "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima", "espirulina", "spirulina",
+        "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate", "probiótico", "probiotico",
+        "vitamina", "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
+        "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
+        "equinácea", "ácido hialurónico", "arándano", "té verde"
+    ]
     encontrados = []
     texto_limpio = limpiar_acentos(texto)
     for ingrediente in posibles_ingredientes:
@@ -57,13 +47,12 @@ def consultar_openai_suplementos(consulta):
         respuesta = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             temperature=0.5,
-            max_tokens=300,
+            max_tokens=400,
             messages=[
-                {"role": "system", "content": """
-Eres un asesor experto en suplementos naturistas.
+                {"role": "system", "content": """Eres un asesor experto en suplementos naturistas.
+Debes interpretar y comprender también los regionalismos y expresiones informales típicas de México para entender mejor al usuario.
 Tu tarea es recomendar suplementos o ingredientes naturales que puedan ayudar a aliviar o apoyar de forma complementaria el malestar, síntoma o condición que te describa el usuario.
-Siempre responde mencionando directamente suplementos naturistas o ingredientes activos.
-Entiende regionalismos mexicanos (ej. 'chorro' = diarrea).
+Siempre responde mencionando directamente suplementos naturistas o ingredientes activos conocidos.
 Evita dar consejos médicos, diagnósticos o recomendar consultas a médicos.
 No uses frases genéricas como 'consulta a un profesional'.
 Sé concreto, breve y claro en tus recomendaciones."""},
@@ -91,15 +80,26 @@ def guardar_en_historial_csv(fecha_hora, pregunta, ingredientes):
     else:
         df_nuevo.to_csv(archivo_csv, mode='w', header=True, index=False)
 
+# Función para borrar historial dejando los últimos 5
+def borrar_historial_dejando_ultimos_5():
+    archivo_csv = 'historial_consultas.csv'
+    if os.path.exists(archivo_csv):
+        df = pd.read_csv(archivo_csv)
+        if len(df) > 5:
+            df = df.tail(5)
+        df.to_csv(archivo_csv, index=False)
+        return True
+    return False
+
 # Cargar catálogo
 df_productos = cargar_catalogo()
 if not df_productos.empty:
     df_productos.columns = df_productos.columns.str.strip().str.lower()
 
-# Categorías a excluir
+# Categorías que no deben mostrarse
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
-# Interfaz
+# Interfaz principal
 st.title("🔎 Consulta - Karolo")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
 
@@ -112,14 +112,13 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
+    # Extraer ingredientes de la respuesta
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
-    # Guardar en CSV
-    guardar_en_historial_csv(
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        consulta_usuario,
-        ingredientes_detectados
-    )
+    # Guardar automáticamente en el CSV
+    pacific = pytz.timezone('America/Los_Angeles')
+    hora_pacifico = datetime.now(pacific).strftime("%Y-%m-%d %H:%M:%S")
+    guardar_en_historial_csv(hora_pacifico, consulta_usuario, ingredientes_detectados)
 
     if ingredientes_detectados:
         st.markdown("🔎 Detectamos estos criterios de búsqueda:")
@@ -161,7 +160,27 @@ if consulta_usuario:
     else:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
 
-# Botón de descarga de historial
-if os.path.exists('historial_consultas.csv'):
-    with open('historial_consultas.csv', 'rb') as f:
-        st.download_button('⬇️ Descargar historial de consultas', f, file_name='historial_consultas.csv')
+# Zona de administración protegida
+with st.expander("🔒 Acceso de administrador (protegido)"):
+    codigo_admin = st.text_input("Ingrese código secreto:", type="password")
+
+    if codigo_admin == "1001":
+        st.success("🔐 Acceso concedido.")
+        
+        if os.path.exists('historial_consultas.csv'):
+            with open('historial_consultas.csv', 'rb') as f:
+                st.download_button(
+                    label="📥 Descargar historial de consultas",
+                    data=f,
+                    file_name="historial_consultas.csv",
+                    mime='text/csv'
+                )
+        
+        if st.button("🗑️ Borrar historial (dejar últimos 5)"):
+            if borrar_historial_dejando_ultimos_5():
+                st.success("✅ Historial limpiado, quedan los últimos 5 registros.")
+            else:
+                st.warning("⚠️ No existe historial para limpiar.")
+    elif codigo_admin:
+        st.error("❌ Código incorrecto.")
+
