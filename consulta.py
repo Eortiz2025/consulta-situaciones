@@ -103,7 +103,7 @@ categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 st.title("🔎 Karolo Naturista")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
 
-consulta_usuario = st.text_input("✍️ Escribe tu necesidad o pregunta:")
+consulta_usuario = st.text_input("✍️ Escribe tu pregunta:")
 
 if consulta_usuario:
     st.info("🔎 Procesando tu consulta...")
