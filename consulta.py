@@ -80,17 +80,6 @@ def guardar_en_historial_csv(fecha_hora, pregunta, ingredientes):
     else:
         df_nuevo.to_csv(archivo_csv, mode='w', header=True, index=False)
 
-# Función para borrar historial dejando los últimos 5
-def borrar_historial_dejando_ultimos_5():
-    archivo_csv = 'historial_consultas.csv'
-    if os.path.exists(archivo_csv):
-        df = pd.read_csv(archivo_csv)
-        if len(df) > 5:
-            df = df.tail(5)
-        df.to_csv(archivo_csv, index=False)
-        return True
-    return False
-
 # Cargar catálogo
 df_productos = cargar_catalogo()
 if not df_productos.empty:
@@ -160,7 +149,7 @@ if consulta_usuario:
     else:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
 
-# Zona de administración protegida
+# Zona de administración protegida (solo descarga)
 with st.expander("🔒 Acceso de administrador (protegido)"):
     codigo_admin = st.text_input("Ingrese código secreto:", type="password")
 
@@ -175,11 +164,5 @@ with st.expander("🔒 Acceso de administrador (protegido)"):
                     file_name="historial_consultas.csv",
                     mime='text/csv'
                 )
-        
-        if st.button("🗑️ Borrar historial (dejar últimos 5)"):
-            if borrar_historial_dejando_ultimos_5():
-                st.success("✅ Historial limpiado, quedan los últimos 5 registros.")
-            else:
-                st.warning("⚠️ No existe historial para limpiar.")
     elif codigo_admin:
         st.error("❌ Código incorrecto.")
