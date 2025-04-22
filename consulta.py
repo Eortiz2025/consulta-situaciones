@@ -183,4 +183,3 @@ with st.expander("🔒 Acceso de administrador (protegido)"):
                 st.warning("⚠️ No existe historial para limpiar.")
     elif codigo_admin:
         st.error("❌ Código incorrecto.")
-
