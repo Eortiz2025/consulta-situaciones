@@ -10,65 +10,8 @@ import pytz
 # Configurar API Key de OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# ===============================
-# Funciones para ingredientes
-# ===============================
-
-def limpiar_acentos(texto):
-    if not isinstance(texto, str):
-        return ""
-    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').lower()
-
-def cargar_ingredientes():
-    archivo = "ingredientes.txt"
-    if not os.path.exists(archivo):
-        return []
-    with open(archivo, "r", encoding="utf-8") as f:
-        return [line.strip().lower() for line in f if line.strip()]
-
-def agregar_ingredientes_nuevos(nuevos):
-    existentes = set(cargar_ingredientes())
-    nuevos_filtrados = [i for i in nuevos if i not in existentes]
-    if nuevos_filtrados:
-        with open("ingredientes.txt", "a", encoding="utf-8") as f:
-            for ingr in nuevos_filtrados:
-                f.write(f"{ingr}\n")
-
-def extraer_ingredientes_de_respuesta(texto):
-    posibles_ingredientes = cargar_ingredientes()
-    texto_limpio = limpiar_acentos(texto)
-    encontrados = []
-
-    # Buscar coincidencias exactas
-    for ingrediente in posibles_ingredientes:
-        patron = r"\b" + re.escape(limpiar_acentos(ingrediente)) + r"\b"
-        if re.search(patron, texto_limpio):
-            encontrados.append(ingrediente)
-
-    # Buscar posibles nuevos ingredientes (2 a 4 palabras)
-    frases_posibles = set(re.findall(r'\b(?:\w+\s+){1,3}\w+\b', texto_limpio))
-    nuevos_validos = []
-
-    for frase in frases_posibles:
-        frase = frase.strip()
-        palabras = frase.split()
-        if len(palabras) < 2:
-            continue
-        if not re.fullmatch(r"[a-z\s]+", frase):
-            continue
-        if palabras[0] in {"el", "la", "los", "las"} or palabras[-1] in {"peruana", "terrestris", "biloba", "extracto", "raiz"}:
-            frase = frase.strip()
-            if frase not in posibles_ingredientes:
-                nuevos_validos.append(frase)
-
-    agregar_ingredientes_nuevos(nuevos_validos)
-
-    return list(set(encontrados + nuevos_validos))
-
-# ===============================
-# Funciones de sistema
-# ===============================
-
+# Función para cargar el catálogo naturista
+@st.cache_data
 def cargar_catalogo():
     try:
         return pd.read_excel('naturista.xlsx')
@@ -76,6 +19,32 @@ def cargar_catalogo():
         st.error(f"Error al cargar el catálogo: {e}")
         return pd.DataFrame()
 
+# Función para limpiar acentos
+def limpiar_acentos(texto):
+    if not isinstance(texto, str):
+        return ""
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').lower()
+
+# Función para extraer posibles ingredientes de un texto
+def extraer_ingredientes_de_respuesta(texto):
+    posibles_ingredientes = [
+        "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima",
+        "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
+        "probiótico", "probiotico",
+        "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
+        "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
+        "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
+        "equinácea", "ácido hialurónico", "arándano", "té verde", "miel de abeja", "propóleo", "eucalipto",
+        "tomillo", "regaliz"
+    ]
+    encontrados = []
+    texto_limpio = limpiar_acentos(texto)
+    for ingrediente in posibles_ingredientes:
+        if limpiar_acentos(ingrediente) in texto_limpio:
+            encontrados.append(ingrediente)
+    return list(set(encontrados))
+
+# Función para consultar OpenAI
 def consultar_openai_suplementos(consulta):
     try:
         respuesta = openai.ChatCompletion.create(
@@ -97,6 +66,7 @@ Sé concreto, breve y claro en tus recomendaciones."""},
     except Exception as e:
         return f"❌ Error consultando OpenAI: {e}"
 
+# Función para guardar historial en CSV
 def guardar_en_historial_csv(fecha_hora, pregunta, ingredientes):
     ingredientes_texto = ", ".join(ingredientes) if ingredientes else "Ninguno"
     nuevo_registro = {
@@ -113,16 +83,15 @@ def guardar_en_historial_csv(fecha_hora, pregunta, ingredientes):
     else:
         df_nuevo.to_csv(archivo_csv, mode='w', header=True, index=False)
 
-# ===============================
-# Interfaz principal
-# ===============================
-
+# Cargar catálogo
 df_productos = cargar_catalogo()
 if not df_productos.empty:
     df_productos.columns = df_productos.columns.str.strip().str.lower()
 
+# Categorías que no deben mostrarse
 categorias_excluidas = ["abarrote", "bebidas", "belleza", "snacks"]
 
+# Interfaz principal
 st.title("🔎 Karolo Naturista")
 st.header("👋 Hola, ¿En qué te puedo ayudar?")
 
@@ -135,14 +104,16 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
+    # Extraer ingredientes de la respuesta
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
+    # Guardar automáticamente en el CSV
     pacific = pytz.timezone('America/Los_Angeles')
     hora_pacifico = datetime.now(pacific).strftime("%Y-%m-%d %H:%M:%S")
     guardar_en_historial_csv(hora_pacifico, consulta_usuario, ingredientes_detectados)
 
     if ingredientes_detectados:
-        st.markdown("🔎 Detectamos estos ingredientes:")
+        st.markdown("🔎 Detectamos estos criterios de búsqueda:")
         st.write(", ".join(ingredientes_detectados))
 
         buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
@@ -181,15 +152,13 @@ if consulta_usuario:
     else:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
 
-# ===============================
-# Zona de administración
-# ===============================
-
+# Zona de administración protegida (solo descarga)
 with st.expander("🔒 Acceso de administrador (protegido)"):
     codigo_admin = st.text_input("Ingrese código secreto:", type="password")
 
     if codigo_admin == "1001":
         st.success("🔐 Acceso concedido.")
+        
         if os.path.exists('historial_consultas.csv'):
             with open('historial_consultas.csv', 'rb') as f:
                 st.download_button(
