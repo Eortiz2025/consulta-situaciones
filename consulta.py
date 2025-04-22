@@ -39,20 +39,34 @@ def extraer_ingredientes_de_respuesta(texto):
     texto_limpio = limpiar_acentos(texto)
     encontrados = []
 
+    # Buscar coincidencias exactas
     for ingrediente in posibles_ingredientes:
         patron = r"\b" + re.escape(limpiar_acentos(ingrediente)) + r"\b"
         if re.search(patron, texto_limpio):
             encontrados.append(ingrediente)
 
-    # Detectar frases nuevas de 2 o más palabras
-    palabras = set(re.findall(r'\b(?:\w+\s+){1,3}\w+\b', texto_limpio))  # busca frases de 2-4 palabras
-    nuevos = [p.strip() for p in palabras if p not in posibles_ingredientes and len(p.strip().split()) > 1]
-    agregar_ingredientes_nuevos(nuevos)
+    # Buscar posibles nuevos ingredientes (2 a 4 palabras)
+    frases_posibles = set(re.findall(r'\b(?:\w+\s+){1,3}\w+\b', texto_limpio))
+    nuevos_validos = []
 
-    return list(set(encontrados + nuevos))
+    for frase in frases_posibles:
+        frase = frase.strip()
+        palabras = frase.split()
+        if len(palabras) < 2:
+            continue
+        if not re.fullmatch(r"[a-z\s]+", frase):
+            continue
+        if palabras[0] in {"el", "la", "los", "las"} or palabras[-1] in {"peruana", "terrestris", "biloba", "extracto", "raiz"}:
+            frase = frase.strip()
+            if frase not in posibles_ingredientes:
+                nuevos_validos.append(frase)
+
+    agregar_ingredientes_nuevos(nuevos_validos)
+
+    return list(set(encontrados + nuevos_validos))
 
 # ===============================
-# Funciones de consulta y sistema
+# Funciones de sistema
 # ===============================
 
 def cargar_catalogo():
@@ -128,7 +142,7 @@ if consulta_usuario:
     guardar_en_historial_csv(hora_pacifico, consulta_usuario, ingredientes_detectados)
 
     if ingredientes_detectados:
-        st.markdown("🔎 Detectamos estos criterios de búsqueda:")
+        st.markdown("🔎 Detectamos estos ingredientes:")
         st.write(", ".join(ingredientes_detectados))
 
         buscar_productos = st.checkbox("🔍 ¿Deseas ver productos relacionados en catálogo?")
