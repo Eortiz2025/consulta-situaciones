@@ -28,11 +28,12 @@ def limpiar_acentos(texto):
 # Función para extraer posibles ingredientes de un texto
 def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = [
-        "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima", "espirulina", "spirulina",
-        "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate", "probiótico", "probiotico",
-        "vitamina", "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
-        "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
-        "equinácea", "ácido hialurónico", "arándano", "té verde"
+        "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima",
+        "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
+        "probiótico", "probiotico", "vitamina", "zinc", "jengibre", "menta", "diente de león", "eufrasia",
+        "colágeno", "magnesio", "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla",
+        "toronjil", "triptófano", "equinácea", "ácido hialurónico", "arándano", "té verde",
+        "miel de abeja", "propóleo", "eucalipto", "tomillo", "regaliz"
     ]
     encontrados = []
     texto_limpio = limpiar_acentos(texto)
