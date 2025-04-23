@@ -41,10 +41,13 @@ def extraer_ingredientes_de_respuesta(texto):
         "vitex", "cromo", "ácido alfa lipoico", "cardo mariano", "boldo", "clorofila", "silymarin", "silimarina",
         "lavanda", "linaza", "salvado de trigo", "lactobacillus acidophilus", "ajo", "cola de caballo",
         "biotina", "aceite de coco", "aceite de ricino", "aceite de almendras", "ricino",
-
-        # Ingredientes nuevos solicitados
         "luteína", "zeaxantina", "árbol de té", "aloe vera", "saúco", "ginkgo biloba", "guayaba",
-        "arroz tostado", "anís", "hinojo", "alcachofa", "perejil"
+        "arroz tostado", "anís", "hinojo", "alcachofa", "perejil",
+
+        # Herbolaria tradicional añadida
+        "arrayán", "flor de cempasúchil", "gordolobo", "chaparral", "romero", "chancapiedra", "muérdago",
+        "castaño de indias", "espino blanco", "palo azul", "té de guayabo", "hoja de guanábana",
+        "hierba del manso", "canelo de castilla", "tila", "maguey morado"
     ]))
 
     encontrados = []
