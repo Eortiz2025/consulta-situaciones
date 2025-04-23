@@ -30,14 +30,14 @@ def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = [
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "rhodiola rosea", "coenzima",
         "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
-        "probíotico", "probiotico", "vinagre de manzana", "garcinia cambogia", "l-carnitina", "algas marinas",
+        "probiótico", "probiotico", "vinagre de manzana", "garcinia cambogia", "l-carnitina", "algas marinas",
         "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
         "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
         "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
         "equinácea", "ácido hialurónico", "arándano", "té verde", "miel de abeja", "propóleo", "eucalipto",
         "tomillo", "regaliz", "silimarin", "silimarina", "biotina", "ajo", "colágeno", "aceite de pescado",
         "ajo", "aceite de ricino", "luteína", "zeaxantina", "arándano rojo", "cola de caballo", "psyllium",
-        "linaza", "salvado de trigo", "lactobacillus acidophilus", "moringa"
+        "linaza", "salvado de trigo", "lactobacillus acidophilus", "moringa", "árnica"
     ]
     encontrados = []
     texto_limpio = limpiar_acentos(texto)
