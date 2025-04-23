@@ -28,7 +28,6 @@ def limpiar_acentos(texto):
 # Función para extraer posibles ingredientes de un texto
 def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = list(set([
-        # Ingredientes originales y ampliados
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima",
         "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
         "probiótico", "probiotico", "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
@@ -43,8 +42,6 @@ def extraer_ingredientes_de_respuesta(texto):
         "biotina", "aceite de coco", "aceite de ricino", "aceite de almendras", "ricino",
         "luteína", "zeaxantina", "árbol de té", "aloe vera", "saúco", "ginkgo biloba", "guayaba",
         "arroz tostado", "anís", "hinojo", "alcachofa", "perejil",
-
-        # Herbolaria tradicional añadida
         "arrayán", "flor de cempasúchil", "gordolobo", "chaparral", "romero", "chancapiedra", "muérdago",
         "castaño de indias", "espino blanco", "palo azul", "té de guayabo", "hoja de guanábana",
         "hierba del manso", "canelo de castilla", "tila", "maguey morado"
@@ -65,13 +62,25 @@ def consultar_openai_suplementos(consulta):
             temperature=0.5,
             max_tokens=400,
             messages=[
-                {"role": "system", "content": """Eres un asesor experto en suplementos naturistas.
-Debes interpretar y comprender también los regionalismos y expresiones informales típicas de México para entender mejor al usuario.
-Tu tarea es recomendar suplementos o ingredientes naturales que puedan ayudar a aliviar o apoyar de forma complementaria el malestar, síntoma o condición que te describa el usuario.
-Siempre responde mencionando directamente suplementos naturistas o ingredientes activos conocidos.
-Evita dar consejos médicos, diagnósticos o recomendar consultas a médicos.
-No uses frases genéricas como 'consulta a un profesional'.
-Sé concreto, breve y claro en tus recomendaciones."""},
+                {"role": "system", "content": """
+Eres un asesor experto en herbolaria mexicana y suplementos naturistas. Actúa como un bot confiable, claro y amigable. 
+Debes:
+- Entender frases informales y mexicanismos.
+- Interpretar síntomas, malestares o expresiones subjetivas como “ando muy cansado”, “me duele la panza”, “ando con chorro”, etc.
+- Recomendar ingredientes naturales conocidos o suplementos comunes.
+- Explicar por qué cada ingrediente es útil (en máximo una línea).
+- Formatear tu salida en lista con viñetas y sin usar rodeos ni advertencias médicas.
+- Mantén un tono cálido y directo, como si atendieras en un mercado herbolario.
+
+Ejemplo:
+Usuario: “Tengo problemas para dormir”
+Respuesta:
+- 🌿 **Valeriana** – Ayuda a relajar el sistema nervioso y conciliar el sueño.
+- 🌼 **Pasiflora** – Tradicionalmente usada para el insomnio leve y la ansiedad.
+- 🍒 **Melatonina** – Hormona natural que regula el ciclo del sueño.
+
+No uses frases genéricas como "consulta con un médico". Solo menciona ingredientes naturales con utilidad real. Si no hay sugerencias claras, responde con "No encontré recomendaciones precisas con base en lo que me diste.".
+"""},
                 {"role": "user", "content": consulta}
             ]
         )
@@ -117,10 +126,8 @@ if consulta_usuario:
         respuesta_openai = consultar_openai_suplementos(consulta_usuario)
     st.success(f"ℹ️ {respuesta_openai}")
 
-    # Extraer ingredientes de la respuesta
     ingredientes_detectados = extraer_ingredientes_de_respuesta(respuesta_openai)
 
-    # Guardar automáticamente en el CSV
     pacific = pytz.timezone('America/Los_Angeles')
     hora_pacifico = datetime.now(pacific).strftime("%Y-%m-%d %H:%M:%S")
     guardar_en_historial_csv(hora_pacifico, consulta_usuario, ingredientes_detectados)
