@@ -28,7 +28,7 @@ def limpiar_acentos(texto):
 # Función para extraer posibles ingredientes de un texto
 def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = list(set([
-        # Ingredientes originales
+        # Ingredientes originales y agregados
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima",
         "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
         "probiótico", "probiotico", "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
@@ -36,16 +36,14 @@ def extraer_ingredientes_de_respuesta(texto):
         "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
         "equinácea", "ácido hialurónico", "arándano", "té verde", "miel de abeja", "propóleo", "eucalipto",
         "tomillo", "regaliz", "bromelina",
-
-        # Ingredientes ya agregados previamente
         "ashwagandha", "reishi", "cordyceps", "lúpulo", "kava", "gaba", "taurina", "creatina", "guaraná", "yerba mate",
         "astrágalo", "sello de oro", "boswellia", "msm", "triphala", "shatavari", "psyllium", "harpagofito",
         "aceite de orégano", "l-teanina", "dong quai", "vitex", "cromo", "ácido alfa lipoico", "cardo mariano", "boldo",
-        "clorofila", "silymarin", "silimarina",
+        "clorofila", "silymarin", "silimarina", "lavanda", "linaza", "salvado de trigo", "lactobacillus acidophilus",
+        "ajo", "cola de caballo", "biotina", "aceite de coco", "aceite de ricino", "aceite de almendras",
 
-        # NUEVOS ingredientes integrados ahora:
-        "lavanda", "linaza", "salvado de trigo", "lactobacillus acidophilus", "ajo", "cola de caballo",
-        "biotina", "aceite de coco", "aceite de ricino", "aceite de almendras"
+        # NUEVO: solo "ricino"
+        "ricino"
     ]))
 
     encontrados = []
