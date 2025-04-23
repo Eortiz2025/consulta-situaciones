@@ -28,22 +28,23 @@ def limpiar_acentos(texto):
 # Función para extraer posibles ingredientes de un texto
 def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = list(set([
-        # Ingredientes originales y agregados
+        # Ingredientes originales y ampliados
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima",
         "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
         "probiótico", "probiotico", "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
         "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
         "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
         "equinácea", "ácido hialurónico", "arándano", "té verde", "miel de abeja", "propóleo", "eucalipto",
-        "tomillo", "regaliz", "bromelina",
-        "ashwagandha", "reishi", "cordyceps", "lúpulo", "kava", "gaba", "taurina", "creatina", "guaraná", "yerba mate",
-        "astrágalo", "sello de oro", "boswellia", "msm", "triphala", "shatavari", "psyllium", "harpagofito",
-        "aceite de orégano", "l-teanina", "dong quai", "vitex", "cromo", "ácido alfa lipoico", "cardo mariano", "boldo",
-        "clorofila", "silymarin", "silimarina", "lavanda", "linaza", "salvado de trigo", "lactobacillus acidophilus",
-        "ajo", "cola de caballo", "biotina", "aceite de coco", "aceite de ricino", "aceite de almendras",
+        "tomillo", "regaliz", "bromelina", "ashwagandha", "reishi", "cordyceps", "lúpulo", "kava", "gaba",
+        "taurina", "creatina", "guaraná", "yerba mate", "astrágalo", "sello de oro", "boswellia", "msm",
+        "triphala", "shatavari", "psyllium", "harpagofito", "aceite de orégano", "l-teanina", "dong quai",
+        "vitex", "cromo", "ácido alfa lipoico", "cardo mariano", "boldo", "clorofila", "silymarin", "silimarina",
+        "lavanda", "linaza", "salvado de trigo", "lactobacillus acidophilus", "ajo", "cola de caballo",
+        "biotina", "aceite de coco", "aceite de ricino", "aceite de almendras", "ricino",
 
-        # NUEVO: solo "ricino"
-        "ricino"
+        # Ingredientes nuevos solicitados
+        "luteína", "zeaxantina", "árbol de té", "aloe vera", "saúco", "ginkgo biloba", "guayaba",
+        "arroz tostado", "anís", "hinojo", "alcachofa", "perejil"
     ]))
 
     encontrados = []
@@ -167,7 +168,7 @@ with st.expander("🔒 Acceso de administrador (protegido)"):
 
     if codigo_admin == "1001":
         st.success("🔐 Acceso concedido.")
-        
+
         if os.path.exists('historial_consultas.csv'):
             with open('historial_consultas.csv', 'rb') as f:
                 st.download_button(
