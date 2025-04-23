@@ -27,16 +27,23 @@ def limpiar_acentos(texto):
 
 # Función para extraer posibles ingredientes de un texto
 def extraer_ingredientes_de_respuesta(texto):
-    posibles_ingredientes = [
+    posibles_ingredientes = list(set([
+        # Base original
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima",
         "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
-        "probiótico", "probiotico",
-        "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
+        "probiótico", "probiotico", "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
         "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
         "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
         "equinácea", "ácido hialurónico", "arándano", "té verde", "miel de abeja", "propóleo", "eucalipto",
-        "tomillo", "regaliz"
-    ]
+        "tomillo", "regaliz", "bromelina",
+
+        # Nuevos ingredientes
+        "ashwagandha", "reishi", "cordyceps", "lúpulo", "kava", "gaba", "taurina", "creatina", "guaraná", "yerba mate",
+        "astrágalo", "sello de oro", "boswellia", "msm", "triphala", "shatavari", "psyllium", "harpagofito",
+        "aceite de orégano", "l-teanina", "dong quai", "vitex", "cromo", "ácido alfa lipoico", "cardo mariano", "boldo",
+        "clorofila", "silymarin", "silimarina"
+    ]))
+    
     encontrados = []
     texto_limpio = limpiar_acentos(texto)
     for ingrediente in posibles_ingredientes:
