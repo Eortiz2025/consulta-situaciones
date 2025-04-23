@@ -30,12 +30,13 @@ def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = [
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "coenzima",
         "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
-        "probiótico", "probiotico", "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
-        "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio", "carbón activado",
-        "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano", "equinácea",
-        "ácido hialurónico", "arándano", "té verde", "miel de abeja", "propóleo", "eucalipto", "tomillo", "regaliz",
-        "lavanda", "biotina", "luteína", "zeaxantina", "psyllium", "linaza", "salvado de trigo", "aloe vera",
-        "bromelina", "ajo", "aceite de pescado", "aceite de ricino", "arrayán", "vinagre de manzana"
+        "probiótico", "probiotico", "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e",
+        "vitamina k", "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
+        "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil",
+        "triptófano", "equinácea", "ácido hialurónico", "arándano", "té verde", "miel de abeja", "propóleo",
+        "eucalipto", "tomillo", "regaliz", "silimarina", "silimarin", "ricino", "luteína", "zeaxantina",
+        "ajo", "fibra", "psyllium", "linaza", "salvado de trigo", "lactobacillus", "ácido láctico", "aloe vera",
+        "algas marinas", "vinagre de manzana", "garcinia cambogia", "l-carnitina"
     ]
     encontrados = []
     texto_limpio = limpiar_acentos(texto)
@@ -152,13 +153,12 @@ if consulta_usuario:
     else:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
 
-# Zona de administración protegida (solo descarga)
+# Zona de administración protegida
 with st.expander("🔒 Acceso de administrador (protegido)"):
     codigo_admin = st.text_input("Ingrese código secreto:", type="password")
 
     if codigo_admin == "1001":
         st.success("🔐 Acceso concedido.")
-
         if os.path.exists('historial_consultas.csv'):
             with open('historial_consultas.csv', 'rb') as f:
                 st.download_button(
