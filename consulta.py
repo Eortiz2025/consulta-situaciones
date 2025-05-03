@@ -30,7 +30,7 @@ def extraer_ingredientes_de_respuesta(texto):
     posibles_ingredientes = [
         "cúrcuma", "glucosamina", "condroitina", "omega", "maca", "ginseng", "rhodiola", "rhodiola rosea", "coenzima",
         "espirulina", "spirulina", "pasiflora", "valeriana", "melatonina", "hierba de sapo", "cuachalalate",
-        "probiótico", "probiotico", "vinagre de manzana", "garcinia cambogia", "l-carnitina", "algas marinas",
+        "probíotico", "probiotico", "vinagre de manzana", "garcinia cambogia", "l-carnitina", "algas marinas",
         "vitamina a", "vitamina b", "vitamina c", "vitamina d", "vitamina e", "vitamina k",
         "zinc", "jengibre", "menta", "diente de león", "eufrasia", "colágeno", "magnesio",
         "carbón activado", "saw palmetto", "semilla de calabaza", "ortiga", "manzanilla", "toronjil", "triptófano",
@@ -81,9 +81,9 @@ def guardar_en_historial_csv(fecha_hora, pregunta, ingredientes):
     df_nuevo = pd.DataFrame([nuevo_registro])
 
     if archivo_existe:
-        df_nuevo.to_csv(archivo_csv, mode='a', header=False, index=False)
+        df_nuevo.to_csv(archivo_csv, mode='a', header=False, index=False, encoding='utf-8')
     else:
-        df_nuevo.to_csv(archivo_csv, mode='w', header=True, index=False)
+        df_nuevo.to_csv(archivo_csv, mode='w', header=True, index=False, encoding='utf-8')
 
 # Cargar catálogo
 df_productos = cargar_catalogo()
@@ -155,7 +155,7 @@ if consulta_usuario:
         st.warning("⚠️ No detectamos ingredientes específicos para buscar productos relacionados.")
 
 # Zona de administración protegida (solo descarga)
-with st.expander("🔒 Acceso de administrador (protegido)"):
+with st.expander("🔐 Acceso de administrador (protegido)"):
     codigo_admin = st.text_input("Ingrese código secreto:", type="password")
 
     if codigo_admin == "1001":
